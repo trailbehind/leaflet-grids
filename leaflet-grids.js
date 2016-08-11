@@ -97,14 +97,14 @@ L.Grids = L.LayerGroup.extend({
     },
 
     _verticalLine: function (lng) {
-        return new L.Polyline([
+        return L.polyline([
                 [this._bounds.getNorth(), lng],
                 [this._bounds.getSouth(), lng]
             ], this.options.lineStyle);
     },
 
     _horizontalLine: function (lat) {
-        return new L.Polyline([
+        return L.polyline([
                 [lat, this._bounds.getWest()],
                 [lat, this._bounds.getEast()]
             ], this.options.lineStyle);
@@ -234,7 +234,7 @@ L.Grids.UTM = L.Grids.extend({
 
     _gridLines: function () {
         var lines = [];
-        if (this._map.getZoom() < 8) {return []};
+        if (this._map.getZoom() <= 8) {return []};
         var gridSize = this._gridSize;
         var southEastLL = this._bounds.getSouthEast();
         var northWestLL = this._bounds.getNorthWest();
@@ -258,7 +258,7 @@ L.Grids.UTM = L.Grids.extend({
                 zoneNumber: southEast.zoneNumber
             };
             var rightPointLL = mgrs.UTMtoLL(rightPointUTM);
-            lines.push( new L.Polyline([leftPointLL,rightPointLL], this.options.lineStyle));
+            lines.push(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle));
         }
         var lonCoord = this._snap(northWest.easting);
         // draw vertical lines from the middle out
@@ -284,7 +284,7 @@ L.Grids.UTM = L.Grids.extend({
             zoneNumber: centerNumber
         };
         var topPointLL = mgrs.UTMtoLL(topPointUTM);
-        lines.push( new L.Polyline([bottomPointLL,topPointLL], this.options.lineStyle));
+        lines.push(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle));
         // draw the other lines
         while (
                 (lonCoordRight < southEast.easting) ||
@@ -308,7 +308,7 @@ L.Grids.UTM = L.Grids.extend({
                     zoneNumber: centerNumber
                 };
                 var topPointLL = mgrs.UTMtoLL(topPointUTM);
-                lines.push( new L.Polyline([bottomPointLL,topPointLL], this.options.lineStyle));
+                lines.push(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle));
             }
         }
         return lines;
@@ -380,14 +380,14 @@ L.Grids.MGRS = L.Grids.extend({
         zonePoints.push(southEastBounds);
         for (var i=0; i < zonePoints.length-1; i++) {
             var northWestLL = zonePoints[i];
-            var southEastLL = L.latLng( southEastBounds.lat, zonePoints[i+1].lng );
+            var southEastLL = L.latLng( southEastBounds.lat, zonePoints[i+1].lng -.00001 );
             var centerLL = L.latLngBounds(northWestLL,southEastLL).getCenter();
             console.log(centerLL);
             console.log( northWestLL, southEastLL );
             var southEast = mgrs.LLtoUTM({lon:southEastLL.lng, lat:southEastLL.lat});
             var northWest = mgrs.LLtoUTM({lon:northWestLL.lng, lat:northWestLL.lat});
             var center = mgrs.LLtoUTM({lon:centerLL.lng, lat:centerLL.lat});
-            console.log(center.zoneNumber);
+            console.log(">>>>>>>", southEast.zoneNumber, northWest.zoneNumber);
             var latCoord = this._snap(southEast.northing);
             // draw horizontal lines
             while (latCoord < northWest.northing) {
@@ -406,11 +406,11 @@ L.Grids.MGRS = L.Grids.extend({
                     zoneNumber: center.zoneNumber
                 };
                 var rightPointLL = mgrs.UTMtoLL(rightPointUTM);
-                lines.push( new L.Polyline([leftPointLL,rightPointLL], this.options.lineStyle));
+                lines.push( this._clean(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle),-121,-120));
             }
             // draw vertical lines
-            var lonCoord = this._snap(northWest.easting);
-            while (lonCoord < southEast.easting ){
+            var lonCoord = this._snap(northWest.easting );
+            while (lonCoord < southEast.easting){
                 lonCoord += gridSize;
                 var bottomPointUTM = {
                     northing: southEast.northing,
@@ -426,7 +426,7 @@ L.Grids.MGRS = L.Grids.extend({
                     zoneNumber: center.zoneNumber
                 };
                 var topPointLL = mgrs.UTMtoLL(topPointUTM);
-                lines.push( new L.Polyline([bottomPointLL,topPointLL], this.options.lineStyle));
+                lines.push(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle));
             }
 
         console.log(lines);
@@ -440,7 +440,38 @@ L.Grids.MGRS = L.Grids.extend({
         // and for each verticalLine
         // push a label
         return labels;
+    },
+    _clean: function (line, leftLng, rightLng) {
+       var pts = line.getLatLngs(); 
+       var options = line.options;
+       var cleanLine;
+       var pt1 = pts[0];
+       var pt2 = pts[pts.length-1];
+       var slope = (pt1.lat-pt2.lat)/(pt1.lng/pt2.lng);
+       // Right side
+       var newRightLat = pt1.lat - (slope * (leftLng - pt1.lng));
+       var newPt2 = L.latLng(newRightLat,rightLng);
+       // Left side
+       var newLeftLat = pt2.lat + (slope * (pt2.lng - rightLng));
+       var newPt1 = L.latLng(newLeftLat,leftLng);
+
+       var cleanLine = L.polyline([newPt1, newPt2], options);
+
+      /* 
+       var dist1 = Math.abs(pt1.lng - lng);
+       var dist2 = Math.abs(pt2.lng - lng);
+       if (dist1 < dist2) {
+           newPt = L.latLng(pt1.lat, lng);
+           cleanLine = L.polyline([pt2, newPt], options);
+       } else {
+           newPt = L.latLng(pt2.lat, lng);
+           cleanLine = L.polyline([pt1, newPt], options);
+           }
+           */
+       console.log(cleanLine);
+       return cleanLine;
     }
+
 });
 
 L.grids.mgrs = function (options) {
@@ -478,36 +509,36 @@ L.Grids.Distance = L.Grids.extend({
         var northBound = LLtoSM(this._bounds.getNorthWest()).y;
         var southBound = LLtoSM(this._bounds.getSouthWest()).y;
         // draw center horizontal line
-        var leftPointCenter = SMtoLL(new L.Point(westBound,latCoord));
-        var rightPointCenter = SMtoLL(new L.Point(eastBound,latCoord));
-        lines.push( new L.Polyline([leftPointCenter,rightPointCenter], this.options.lineStyle));
+        var leftPointCenter = SMtoLL(L.point(westBound,latCoord));
+        var rightPointCenter = SMtoLL(L.point(eastBound,latCoord));
+        lines.push( L.polyline([leftPointCenter,rightPointCenter], this.options.lineStyle));
         // draw horizontal lines from center out
         while (latCoordUp < northBound) {
             latCoordUp += gridSize;
             latCoordDown -= gridSize;
             var latCoords = [latCoordUp, latCoordDown];
             for ( var i = 0; i < 2; i++) {
-                var leftPoint = SMtoLL(new L.Point(westBound,latCoords[i]));
-                var rightPoint = SMtoLL(new L.Point(eastBound,latCoords[i]));
-                lines.push( new L.Polyline([leftPoint,rightPoint], this.options.lineStyle));
+                var leftPoint = SMtoLL(L.point(westBound,latCoords[i]));
+                var rightPoint = SMtoLL(L.point(eastBound,latCoords[i]));
+                lines.push( L.polyline([leftPoint,rightPoint], this.options.lineStyle));
             }
         }
         // draw center vertical line
         var lngCoord = LLtoSM(this._bounds.getCenter()).x;
         var lngCoordRight = lngCoord;
         var lngCoordLeft = lngCoord;
-        var topPointCenter = SMtoLL(new L.Point(lngCoord,northBound));
-        var bottomPointCenter = SMtoLL(new L.Point(lngCoord,southBound));
-        lines.push( new L.Polyline([topPointCenter,bottomPointCenter], this.options.lineStyle));
+        var topPointCenter = SMtoLL(L.point(lngCoord,northBound));
+        var bottomPointCenter = SMtoLL(L.point(lngCoord,southBound));
+        lines.push(L.polyline([topPointCenter,bottomPointCenter], this.options.lineStyle));
         // draw vertical lines from center out
         while (lngCoordRight < eastBound) {
             lngCoordRight += gridSize;
             lngCoordLeft -= gridSize;
             var lngCoords = [lngCoordLeft, lngCoordRight];
             for ( var i = 0; i < 2; i++ ) {
-                var topPoint = SMtoLL(new L.Point(lngCoords[i], northBound));
-                var bottomPoint = SMtoLL(new L.Point(lngCoords[i], southBound));
-                lines.push( new L.Polyline([topPoint, bottomPoint], this.options.lineStyle));
+                var topPoint = SMtoLL(L.point(lngCoords[i], northBound));
+                var bottomPoint = SMtoLL(L.point(lngCoords[i], southBound));
+                lines.push(L.polyline([topPoint, bottomPoint], this.options.lineStyle));
             }
         }
         return lines;
