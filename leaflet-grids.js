@@ -1,3 +1,8 @@
+/*
+ *
+ * Inspired by Leaflet.Grid: https://github.com/jieter/Leaflet.Grid
+ */
+
 L.Grids = L.LayerGroup.extend({
     options: {
         lineStyle: {
@@ -6,7 +11,8 @@ L.Grids = L.LayerGroup.extend({
             opacity: 0.6,
             weight: 1
                    },
-        redraw: 'move'
+        redraw: 'move',
+        clickable: false
     },
 
     initialize: function (options) {
@@ -341,27 +347,34 @@ L.Grids.MGRS = L.Grids.extend({
     _gridLines: function () {
         var lines = [];
         console.log("ZOOM" + this._mapZoom);
-        if ( this._mapZoom < 7 ) {
-            // 6 x 8 grid-zone lines
 
-            var latCoord = this._snapTo(this._bounds.getSouth(), 6);
-            var northBound = this._bounds.getNorth();
-            while (latCoord < northBound) {
-                this._latCoords.push(latCoord);
-                latCoord += 6;
-            }
-            var lngCoord = this._snapTo(this._bounds.getWest(), 8);
-            var eastBound = this._bounds.getEast();
-            while (lngCoord < eastBound) {
-                this._lngCoords.push(lngCoord);
-                lngCoord += 8;
-            }
-            for (i in this._lngCoords) {
-                lines.push(this._verticalLine(this._lngCoords[i]));
-            }
-            for (i in this._latCoords) {
-                lines.push(this._horizontalLine(this._latCoords[i]));
-            }
+        // 6 x 8 grid-zone lines
+
+        var latCoord = this._snapTo(this._bounds.getSouth(), 6);
+        var northBound = this._bounds.getNorth();
+        while (latCoord < northBound) {
+            this._latCoords.push(latCoord);
+            latCoord += 6;
+        }
+        var zoneBreaks = [this._bounds.getWest()];
+        var lngCoord = this._snapTo(this._bounds.getWest(), 8);
+        var eastBound = this._bounds.getEast();
+        while (lngCoord < eastBound) {
+            this._lngCoords.push(lngCoord);
+            lngCoord += 8;
+            zoneBreaks.push(lngCoord);
+        }
+        zoneBreaks.pop(); // Don't need to draw lines this far
+        zoneBreaks.push(this._bounds.getEast());
+        console.log(zoneBreaks);
+
+        for (i in this._lngCoords) {
+            lines.push(this._verticalLine(this._lngCoords[i]));
+        }
+        for (i in this._latCoords) {
+            lines.push(this._horizontalLine(this._latCoords[i]));
+        }
+        if ( this._mapZoom < 7 ) {
             return lines;
         };
         // utm grids for all other zooms
@@ -654,6 +667,9 @@ L.grids.distance.imperial = function (options) {
     return new L.Grids.Distance.Imperial(options);
 };
 
+// per  http://stackoverflow.com/questions/17664327/leaflet-panto-web-mercator-coordinates-epsg-3857
+// and https://en.wikipedia.org/wiki/Earth_radius#Mean_radius
+
 var EARTH_RADIUS = 6371000;
 
 SMtoLL = function (point) { // Spherical Mercator -> LatLng
@@ -666,6 +682,8 @@ LLtoSM = function (point) { // LatLng -> Spherical Mercator
     return L.Projection.SphericalMercator.project(point).multiplyBy(EARTH_RADIUS);
 
 };
+
+// per http://stackoverflow.com/questions/27545098/leaflet-calculating-meters-per-pixel-at-zoom-level/31266377#31266377
 
 metersPerPixel = function (lat,zoom) {
    return EARTH_RADIUS * Math.abs(Math.cos(lat / 180 * Math.PI)) / Math.pow(2, zoom+8);
