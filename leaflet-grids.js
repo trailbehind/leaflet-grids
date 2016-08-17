@@ -5,14 +5,21 @@
 
 L.Grids = L.LayerGroup.extend({
     options: {
+        redraw: 'move',
         lineStyle: {
             stroke: true,
             color: '#111',
             opacity: 0.6,
-            weight: 1
-                   },
-        redraw: 'move',
-        clickable: false
+            weight: 1,
+            clickable: false
+        },
+        zoneStyle: {
+                stroke: true,
+                color: '#333',
+                opacity: 0.6,
+                weight: 3,
+                clickable: false
+        },
     },
 
     initialize: function (options) {
@@ -102,18 +109,19 @@ L.Grids = L.LayerGroup.extend({
         return Math.floor(num / snap) * snap;
     },
 
-    _verticalLine: function (lng) {
+    _verticalLine: function (lng, options) {
+                       console.log(options);
         return L.polyline([
                 [this._bounds.getNorth(), lng],
                 [this._bounds.getSouth(), lng]
-            ], this.options.lineStyle);
+            ], options ? options : this.options.lineStyle);
     },
 
-    _horizontalLine: function (lat) {
+    _horizontalLine: function (lat, options) {
         return L.polyline([
                 [lat, this._bounds.getWest()],
                 [lat, this._bounds.getEast()]
-            ], this.options.lineStyle);
+            ], options ? options : this.options.lineStyle);
     },
 
     _label: function (latlng) {
@@ -350,99 +358,83 @@ L.Grids.MGRS = L.Grids.extend({
 
         // 6 x 8 grid-zone lines
 
-        var latCoord = this._snapTo(this._bounds.getSouth(), 6);
+        var latCoord = this._snapTo(this._bounds.getSouth(), 8.0);
         var northBound = this._bounds.getNorth();
+        var southBound = this._bounds.getSouth();
+        var eastBound = this._bounds.getEast();
+        var westBound = this._bounds.getWest();
         while (latCoord < northBound) {
             this._latCoords.push(latCoord);
-            latCoord += 6;
+            latCoord += 8.0;
         }
-        var zoneBreaks = [this._bounds.getWest()];
-        var lngCoord = this._snapTo(this._bounds.getWest(), 8);
-        var eastBound = this._bounds.getEast();
-        while (lngCoord < eastBound) {
+        var zoneBreaks = [westBound];
+        var lngCoord = this._snapTo(westBound, 6.0);
+        while (lngCoord < eastBound - 6.0) {
             this._lngCoords.push(lngCoord);
-            lngCoord += 8;
+            lngCoord += 6.0;
             zoneBreaks.push(lngCoord);
         }
-        zoneBreaks.pop(); // Don't need to draw lines this far
-        zoneBreaks.push(this._bounds.getEast());
-        console.log(zoneBreaks);
+        zoneBreaks.push(eastBound);
+        console.log("BREAKS: ", zoneBreaks);
 
         for (i in this._lngCoords) {
-            lines.push(this._verticalLine(this._lngCoords[i]));
+            lines.push(this._verticalLine(this._lngCoords[i], this.options.zoneStyle));
         }
         for (i in this._latCoords) {
-            lines.push(this._horizontalLine(this._latCoords[i]));
+            lines.push(this._horizontalLine(this._latCoords[i], this.options.zoneStyle));
         }
-        if ( this._mapZoom < 7 ) {
+        if ( this._mapZoom < 8 ) {
             return lines;
         };
         // utm grids for all other zooms
         var gridSize = this._gridSize;
-        var southEastBounds = this._bounds.getSouthEast();
-        var northWestBounds = this._bounds.getNorthWest();
-        var zonePoints = [northWestBounds];
-        if ( this._snapTo(southEastBounds.lng, 6) > northWestBounds.lng ) {
-            console.log("multiple gridzones");
-            var midLng = this._snapTo(northWestBounds.lng + 6, 6);
-            while ( midLng < southEastBounds.lng ) {
-                zonePoints.push(L.latLng(northWestBounds.lat, midLng));
-                midLng += 6 ;
-            }
-        }
-        zonePoints.push(southEastBounds);
-        for (var i=0; i < zonePoints.length-1; i++) {
-            var northWestLL = zonePoints[i];
-            var southEastLL = L.latLng( southEastBounds.lat, zonePoints[i+1].lng -.00001 );
-            var centerLL = L.latLngBounds(northWestLL,southEastLL).getCenter();
-            console.log(centerLL);
-            console.log( northWestLL, southEastLL );
+        var fFactor = .0001; // keeps calculations at zone boundaries inside the zone
+        for (var i=0; i < zoneBreaks.length-1; i++) {
+            var northWestLL = L.latLng( northBound, zoneBreaks[i] + fFactor );
+            var southEastLL = L.latLng( southBound, zoneBreaks[i+1] - fFactor );
             var southEast = mgrs.LLtoUTM({lon:southEastLL.lng, lat:southEastLL.lat});
             var northWest = mgrs.LLtoUTM({lon:northWestLL.lng, lat:northWestLL.lat});
-            var center = mgrs.LLtoUTM({lon:centerLL.lng, lat:centerLL.lat});
-            console.log(">>>>>>>", southEast.zoneNumber, northWest.zoneNumber);
             var latCoord = this._snap(southEast.northing);
             // draw horizontal lines
-            while (latCoord < northWest.northing) {
+            while (latCoord < northWest.northing ) {
                 latCoord += gridSize;
                 var leftPointUTM = {
                     northing: latCoord,
                     easting: northWest.easting,
-                    zoneLetter: center.zoneLetter,
-                    zoneNumber: center.zoneNumber
+                    zoneLetter: northWest.zoneLetter,
+                    zoneNumber: northWest.zoneNumber
                 };
                 var leftPointLL = mgrs.UTMtoLL(leftPointUTM);
                 var rightPointUTM = {
                     northing: latCoord,
                     easting: southEast.easting,
-                    zoneLetter: center.zoneLetter,
-                    zoneNumber: center.zoneNumber
+                    zoneLetter: southEast.zoneLetter,
+                    zoneNumber: southEast.zoneNumber
                 };
                 var rightPointLL = mgrs.UTMtoLL(rightPointUTM);
-                lines.push( this._clean(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle),-121,-120));
+                lines.push( this._cleanHorz(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i],zoneBreaks[i+1]));
             }
             // draw vertical lines
-            var lonCoord = this._snap(northWest.easting );
+            var lonCoord = this._snap(northWest.easting - gridSize);
             while (lonCoord < southEast.easting){
                 lonCoord += gridSize;
                 var bottomPointUTM = {
                     northing: southEast.northing,
                     easting: lonCoord,
-                    zoneLetter: center.zoneLetter,
-                    zoneNumber: center.zoneNumber
+                    zoneLetter: southEast.zoneLetter,
+                    zoneNumber: southEast.zoneNumber
                 };
                 var bottomPointLL = mgrs.UTMtoLL(bottomPointUTM);
                 var topPointUTM = {
                     northing: northWest.northing,
                     easting: lonCoord,
-                    zoneLetter: center.zoneLetter,
-                    zoneNumber: center.zoneNumber
+                    zoneLetter: northWest.zoneLetter,
+                    zoneNumber: northWest.zoneNumber
                 };
                 var topPointLL = mgrs.UTMtoLL(topPointUTM);
-                lines.push(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle));
+                lines.push( this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
             }
 
-        console.log(lines);
         }
         return lines;
 
@@ -454,35 +446,40 @@ L.Grids.MGRS = L.Grids.extend({
         // push a label
         return labels;
     },
-    _clean: function (line, leftLng, rightLng) {
+    _cleanHorz: function (line, leftLng, rightLng) {
        var pts = line.getLatLngs(); 
        var options = line.options;
        var cleanLine;
        var pt1 = pts[0];
        var pt2 = pts[pts.length-1];
-       var slope = (pt1.lat-pt2.lat)/(pt1.lng/pt2.lng);
+       var slope = (pt1.lat-pt2.lat)/(pt1.lng-pt2.lng);
        // Right side
-       var newRightLat = pt1.lat - (slope * (leftLng - pt1.lng));
+       var newRightLat = pt1.lat - (slope * (leftLng - pt2.lng));
        var newPt2 = L.latLng(newRightLat,rightLng);
        // Left side
-       var newLeftLat = pt2.lat + (slope * (pt2.lng - rightLng));
+       var newLeftLat = pt2.lat + (slope * (pt1.lng - rightLng));
        var newPt1 = L.latLng(newLeftLat,leftLng);
 
        var cleanLine = L.polyline([newPt1, newPt2], options);
 
-      /* 
-       var dist1 = Math.abs(pt1.lng - lng);
-       var dist2 = Math.abs(pt2.lng - lng);
-       if (dist1 < dist2) {
-           newPt = L.latLng(pt1.lat, lng);
-           cleanLine = L.polyline([pt2, newPt], options);
-       } else {
-           newPt = L.latLng(pt2.lat, lng);
-           cleanLine = L.polyline([pt1, newPt], options);
-           }
-           */
-       console.log(cleanLine);
        return cleanLine;
+    },
+
+    _cleanVert: function (line, leftLng, rightLng) {
+       var pts = line.getLatLngs(); 
+       var options = line.options;
+       var pt1 = pts[0];
+       var pt2 = pts[pts.length-1];
+       var slope = (pt1.lat-pt2.lat)/(pt1.lng-pt2.lng);
+       if ( pt2.lng > rightLng) {
+           var newLat = pt1.lat + (slope * (rightLng - pt1.lng));
+           pt2 = L.latLng(newLat,rightLng);
+       } 
+       if ( pt2.lng < leftLng) {
+           var newLat = pt1.lat + (slope * (leftLng - pt1.lng));
+           pt2 = L.latLng(newLat,leftLng);
+       } 
+       return L.polyline([pt1, pt2], options);
     }
 
 });
