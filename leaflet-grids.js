@@ -3,6 +3,7 @@
  * Inspired by Leaflet.Grid: https://github.com/jieter/Leaflet.Grid
  */
 
+
 L.Grids = L.LayerGroup.extend({
     options: {
         redraw: 'move',
@@ -110,7 +111,6 @@ L.Grids = L.LayerGroup.extend({
     },
 
     _verticalLine: function (lng, options) {
-                       console.log(options);
         return L.polyline([
                 [this._bounds.getNorth(), lng],
                 [this._bounds.getSouth(), lng]
@@ -367,31 +367,36 @@ L.Grids.MGRS = L.Grids.extend({
             this._latCoords.push(latCoord);
             latCoord += 8.0;
         }
+        var zoneBreaks = [];
         var zoneBreaks = [westBound];
-        var lngCoord = this._snapTo(westBound, 6.0);
-        while (lngCoord < eastBound - 6.0) {
-            this._lngCoords.push(lngCoord);
-            lngCoord += 6.0;
+        var lngCoord = this._snapTo(westBound, 6.0) + 6.0;
+        while (lngCoord < eastBound ) {
             zoneBreaks.push(lngCoord);
+            lngCoord += 6.0;
         }
         zoneBreaks.push(eastBound);
         console.log("BREAKS: ", zoneBreaks);
 
-        for (i in this._lngCoords) {
-            lines.push(this._verticalLine(this._lngCoords[i], this.options.zoneStyle));
+        for (var i=1; i < zoneBreaks.length-1; i++ ) {
+            lines.push(this._verticalLine(zoneBreaks[i], this.options.zoneStyle));
         }
         for (i in this._latCoords) {
             lines.push(this._horizontalLine(this._latCoords[i], this.options.zoneStyle));
         }
-        if ( this._mapZoom < 8 ) {
+        var mapBounds = map.getBounds();
+        // show just the zone boundaries if zoomed out too far
+        if ( Math.abs(mapBounds.getWest() - mapBounds.getEast()) > 8 ) {
+        //if ( this._mapZoom < 8 ) {
             return lines;
         };
         // utm grids for all other zooms
         var gridSize = this._gridSize;
-        var fFactor = .0001; // keeps calculations at zone boundaries inside the zone
+        var fFactor = .000001; // keeps calculations at zone boundaries inside the zone
         for (var i=0; i < zoneBreaks.length-1; i++) {
             var northWestLL = L.latLng( northBound, zoneBreaks[i] + fFactor );
             var southEastLL = L.latLng( southBound, zoneBreaks[i+1] - fFactor );
+            var centerLL = L.latLngBounds(northWestLL,southEastLL).getCenter();
+            var center = mgrs.LLtoUTM({lon:centerLL.lng, lat:centerLL.lat});
             var southEast = mgrs.LLtoUTM({lon:southEastLL.lng, lat:southEastLL.lat});
             var northWest = mgrs.LLtoUTM({lon:northWestLL.lng, lat:northWestLL.lat});
             var latCoord = this._snap(southEast.northing);
@@ -401,15 +406,15 @@ L.Grids.MGRS = L.Grids.extend({
                 var leftPointUTM = {
                     northing: latCoord,
                     easting: northWest.easting,
-                    zoneLetter: northWest.zoneLetter,
-                    zoneNumber: northWest.zoneNumber
+                    zoneLetter: center.zoneLetter,
+                    zoneNumber: center.zoneNumber
                 };
                 var leftPointLL = mgrs.UTMtoLL(leftPointUTM);
                 var rightPointUTM = {
                     northing: latCoord,
                     easting: southEast.easting,
-                    zoneLetter: southEast.zoneLetter,
-                    zoneNumber: southEast.zoneNumber
+                    zoneLetter:center.zoneLetter,
+                    zoneNumber:center.zoneNumber
                 };
                 var rightPointLL = mgrs.UTMtoLL(rightPointUTM);
                 lines.push( this._cleanHorz(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i],zoneBreaks[i+1]));
@@ -421,20 +426,20 @@ L.Grids.MGRS = L.Grids.extend({
                 var bottomPointUTM = {
                     northing: southEast.northing,
                     easting: lonCoord,
-                    zoneLetter: southEast.zoneLetter,
-                    zoneNumber: southEast.zoneNumber
+                    zoneLetter: center.zoneLetter,
+                    zoneNumber:center.zoneNumber
                 };
                 var bottomPointLL = mgrs.UTMtoLL(bottomPointUTM);
+                
                 var topPointUTM = {
                     northing: northWest.northing,
                     easting: lonCoord,
-                    zoneLetter: northWest.zoneLetter,
-                    zoneNumber: northWest.zoneNumber
+                    zoneLetter:center.zoneLetter,
+                    zoneNumber:center.zoneNumber
                 };
                 var topPointLL = mgrs.UTMtoLL(topPointUTM);
                 lines.push( this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
             }
-
         }
         return lines;
 
