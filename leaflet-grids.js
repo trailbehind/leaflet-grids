@@ -49,12 +49,10 @@ L.Grids = L.LayerGroup.extend({
         for (i in gridLines){
             this.addLayer(gridLines[i]);
                     }
-        /*
         var labels = this._gridLabels();
         for (i in labels) {
             this.addLayer(labels[i]);
         }
-        */
         return this;
     },
     
@@ -90,15 +88,16 @@ L.Grids = L.LayerGroup.extend({
 
     _gridLabels: function () {
         var labels = [];
-        var bounds = this._map.getBounds().pad(-0.005);
+        var bounds = this._map.getBounds().pad(-0.025);
         for (i in this._lngCoords) {
-            latlng = L.latLng(bounds.getNorth(), this._lngCoords[1]) 
-            labels.push(this._label(latlng));
+            latlng = L.latLng(bounds.getNorth(), this._lngCoords[i]) 
+            labels.push(this._label(latlng, 'lng'));
         }
         for (i in this._latCoords) {
-            latlng = L.latLng(bounds.getWest(), this._latCoords[1]) 
-            labels.push(this._label(latlng));
+            latlng = L.latLng(this._latCoords[i], bounds.getWest());
+            labels.push(this._label(latlng, 'lat'));
         }
+        console.log(labels);
         return labels;
     },
 
@@ -123,19 +122,25 @@ L.Grids = L.LayerGroup.extend({
                 [lat, this._bounds.getEast()]
             ], options ? options : this.options.lineStyle);
     },
-
-    _label: function (latlng) {
+    _label: function (latlng, direction) {
         //TODO figure out formatting
+        var labelText
+        if (direction == 'lat') {
+            labelText = latlng.lat;
+        } else if (direction == 'lng') {
+            labelText = latlng.lng;
+        } else if (direction == 'mgrs') {
+            labelText = 'MGRS';
+        }
         return L.marker(latlng, {
                 icon: L.divIcon({
                     iconSize: [0, 0],
                     className: 'leaflet-grid-label',
                     //html: '<div class="' + axis + '">' + this.formatCoord(num, axis) + '</div>'
-                    html: '<div class="todo  ">' + 'label'+ '</div>'
+                    html: '<div class="todo  ">' + labelText+ '</div>'
                 })
         });
     }
-    
 
 });
 
