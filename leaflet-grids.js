@@ -18,7 +18,7 @@ L.Grids = L.LayerGroup.extend({
                 stroke: true,
                 color: '#333',
                 opacity: 0.6,
-                weight: 3,
+                weight: 4,
                 clickable: false
         },
     },
@@ -115,7 +115,7 @@ L.Grids = L.LayerGroup.extend({
     _label: function (latLng, labelText, cssClass) {
         return L.marker(latLng, {
                 icon: L.divIcon({
-                    iconSize: [0, 0],
+                    iconSize: [100, 20],
                     className: 'leaflet-grids-label',
                     //html: '<div class="' + axis + '">' + this.formatCoord(num, axis) + '</div>'
                     html: '<div class="grid-label ' + cssClass + '">' + labelText+ '</div>'
@@ -226,7 +226,7 @@ L.Grids.DMS = L.Grids.extend({
             var deg = Math.floor(coord);
             var min = Math.floor(( coord - deg ) * 60);
             var sec = Math.floor((coord - deg - (min/60)) * 3600);
-            var label = Math.abs(deg);
+            var label = Math.abs(deg) + "&deg;"
             var zoom = map.getZoom();
             if ( zoom > 8) {
                 label += " " + min + "'";
@@ -243,12 +243,97 @@ L.grids.dms = function (options) {
     return new L.Grids.DMS(options);
 };
 
+/* 
+ * Mercator grid base class
+ * shared by UTM and MGRS
+ */
+
+L.Grids.Mercator = L.Grids.extend({
+
+    _cleanHorz: function (line, leftLng, rightLng) {
+       var pts = line.getLatLngs(); 
+       var options = line.options;
+       var cleanLine;
+       var pt1 = pts[0];
+       var pt2 = pts[pts.length-1];
+       var slope = (pt1.lat-pt2.lat)/(pt1.lng-pt2.lng);
+       // Right side
+       var newRightLat = pt1.lat - (slope * (leftLng - pt2.lng));
+       var newPt2 = L.latLng(newRightLat,rightLng);
+       // Left side
+       var newLeftLat = pt2.lat + (slope * (pt1.lng - rightLng));
+       var newPt1 = L.latLng(newLeftLat,leftLng);
+
+       var cleanLine = L.polyline([newPt1, newPt2], options);
+
+       return cleanLine;
+    },
+
+    _cleanVert: function (line, leftLng, rightLng) {
+       var pts = line.getLatLngs(); 
+       var options = line.options;
+       var pt1 = pts[0];
+       var pt2 = pts[pts.length-1];
+       var slope = (pt1.lat-pt2.lat)/(pt1.lng-pt2.lng);
+       if ( pt2.lng > rightLng) {
+           var newLat = pt1.lat + (slope * (rightLng - pt1.lng));
+           pt2 = L.latLng(newLat,rightLng);
+       } 
+       if ( pt2.lng < leftLng) {
+           var newLat = pt1.lat + (slope * (leftLng - pt1.lng));
+           pt2 = L.latLng(newLat,leftLng);
+       } 
+       return L.polyline([pt1, pt2], options);
+    },
+
+    /* find the intersection of two lines
+     * uses the first and last point only!
+     * based on
+     * http://stackoverflow.com/questions/13937782/calculating-the-point-of-intersection-of-two-lines
+     * which is based on
+     * http://paulbourke.net/geometry/pointlineplane/
+     */
+    
+
+    _line_intersect: function(line1, line2) {
+        var line1Pts = line1.getLatLngs();
+        var line2Pts = line2.getLatLngs();
+        var pt1 = line1Pts[0];
+        var pt2 = line1Pts[line1Pts.length - 1];
+        var pt3 = line2Pts[0];
+        var pt4 = line2Pts[line2Pts.length - 1];
+        var x1 = pt1.lng;
+        var y1 = pt1.lat;
+        var x2 = pt2.lng;
+        var y2 = pt2.lat;
+        var x3 = pt3.lng;
+        var y3 = pt3.lat;
+        var x4 = pt4.lng;
+        var y4 = pt4.lat;
+        var x, y, ua, ub, denom = (y4 - y3)*(x2 - x1) - (x4 - x3)*(y2 - y1);
+        if (denom == 0) {
+            return false;
+        }
+        ua = ((x4 - x3)*(y1 - y3) - (y4 - y3)*(x1 - x3))/denom;
+        ub = ((x2 - x1)*(y1 - y3) - (y2 - y1)*(x1 - x3))/denom;
+        x = x1 + ua*(x2 - x1);
+        y = y1 + ua*(y2 - y1);
+        try {
+        return L.latLng(y,x)
+        }
+        catch(err) {
+            return false;
+        }
+    }
+
+
+});
 
 /*
   UTM GRIDS
  */
 
-L.Grids.UTM = L.Grids.extend({
+L.Grids.UTM = L.Grids.Mercator.extend({
     options: {
         coordinateGridSpacing: [
             1000000, // 0
@@ -272,88 +357,144 @@ L.Grids.UTM = L.Grids.extend({
             100, // 18
         ]
     },
+// This is very similar to MGRS grids except for the labels so some of this
+// might be able to be moved to base class for both
 
     _gridLines: function () {
         var lines = [];
-        if (this._map.getZoom() <= 8) {return []};
-        var gridSize = this._gridSize;
-        var southEastLL = this._bounds.getSouthEast();
-        var northWestLL = this._bounds.getNorthWest();
-        var southEast = mgrs.LLtoUTM({lon:southEastLL.lng, lat:southEastLL.lat});
-        var northWest = mgrs.LLtoUTM({lon:northWestLL.lng, lat:northWestLL.lat});
-        var latCoord = this._snap(southEast.northing);
-        // draw horizontal lines
-        while (latCoord < northWest.northing) {
-            latCoord += gridSize;
-            var leftPointUTM = {
-                northing: latCoord,
-                easting: northWest.easting,
-                zoneLetter: northWest.zoneLetter,
-                zoneNumber: northWest.zoneNumber
-            };
-            var leftPointLL = mgrs.UTMtoLL(leftPointUTM);
-            var rightPointUTM = {
-                northing: latCoord,
-                easting: southEast.easting,
-                zoneLetter: southEast.zoneLetter,
-                zoneNumber: southEast.zoneNumber
-            };
-            var rightPointLL = mgrs.UTMtoLL(rightPointUTM);
-            lines.push(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle));
+        console.log("ZOOM" + this._mapZoom);
+
+        // 6 deg wide grid-zone lines
+
+        var northBound = this._bounds.getNorth();
+        var southBound = this._bounds.getSouth();
+        var eastBound = this._bounds.getEast();
+        var westBound = this._bounds.getWest();
+        var mapBounds = this._map.getBounds();
+        var labelBounds = mapBounds.pad(-0.025);
+        var northLabel = labelBounds.getNorth();
+        var westLabel = labelBounds.getWest();
+        var zoneBreaks = [];
+        var zoneBreaks = [westBound];
+        var lngCoord = this._snapTo(westBound, 6.0) + 6.0;
+        while (lngCoord < eastBound ) {
+            zoneBreaks.push(lngCoord);
+            labelPt = L.latLng(northLabel, lngCoord);
+            labelUTM = mgrs.LLtoUTM({lat: labelPt.lat, lon: labelPt.lng + .1});
+            labelText = "Zone " + labelUTM.zoneNumber;
+            this._gridLabels.push(this._label(labelPt, labelText, 'lng'));
+            lngCoord += 6.0;
         }
-        var lonCoord = this._snap(northWest.easting);
-        // draw vertical lines from the middle out
-        var mapCenterLL = this._map.getCenter();
-        var mapCenterUTM = mgrs.LLtoUTM({lon:mapCenterLL.lng, lat:mapCenterLL.lat});
-        var lonCoordCenter = this._snap(mapCenterUTM.easting);
-        var lonCoordLeft = lonCoordCenter;
-        var lonCoordRight = lonCoordCenter;
-        var centerZone = mapCenterUTM.zoneLetter;
-        var centerNumber = mapCenterUTM.zoneNumber;
-        // draw the center line
-        var bottomPointUTM = {
-            northing: southEast.northing,
-            easting: lonCoordCenter,
-            zoneLetter: centerZone,
-            zoneNumber: centerNumber
+        zoneBreaks.push(eastBound);
+        console.log("BREAKS: ", zoneBreaks);
+
+        for (var i=1; i < zoneBreaks.length-1; i++ ) {
+            lines.push(this._verticalLine(zoneBreaks[i], this.options.zoneStyle));
+        }
+        for (i in this._latCoords) {
+            lines.push(this._horizontalLine(this._latCoords[i], this.options.zoneStyle));
+        }
+        // show just the zone boundaries if zoomed out too far
+        // 8 degrees works well visually
+        if ( Math.abs(mapBounds.getWest() - mapBounds.getEast()) > 8 ) {
+            return lines;
         };
-        var bottomPointLL = mgrs.UTMtoLL(bottomPointUTM);
-        var topPointUTM = {
-            northing: northWest.northing,
-            easting: lonCoordCenter,
-            zoneLetter: centerZone,
-            zoneNumber: centerNumber
-        };
-        var topPointLL = mgrs.UTMtoLL(topPointUTM);
-        lines.push(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle));
-        // draw the other lines
-        while (
-                (lonCoordRight < southEast.easting) ||
-                (lonCoordLeft > northWest.easting) 
-              ){
-            lonCoordRight += gridSize;
-            lonCoordLeft -= gridSize;
-            var coords = [lonCoordLeft, lonCoordRight];
-            for (var i = 0; i < 2; i++){
+        this._gridLabels = [];
+
+        // utm grids for all other zooms
+        var lngLabelLine = L.polyline([labelBounds.getNorthWest(), labelBounds.getNorthEast()]);
+        var latLabelLine = L.polyline([labelBounds.getNorthWest(), labelBounds.getSouthWest()]);
+        var gridSize = this._gridSize;
+        var fFactor = .000001; // keeps calculations at zone boundaries inside the zone
+        var labelsDrawn = false;
+        var labelsInRange = false;
+        var gridLine;
+        for (var i=0; i < zoneBreaks.length-1; i++) {
+            // are the labels on screen
+            var northWestLL = L.latLng( northBound, zoneBreaks[i] + fFactor );
+            var southEastLL = L.latLng( southBound, zoneBreaks[i+1] - fFactor );
+            if (northWestLL.lng < westLabel && southEastLL.lng > westLabel ) {
+                labelsInRange = true;
+            }
+            var centerLL = L.latLngBounds(northWestLL,southEastLL).getCenter();
+            var center = mgrs.LLtoUTM({lon:centerLL.lng, lat:centerLL.lat});
+            var southEast = mgrs.LLtoUTM({lon:southEastLL.lng, lat:southEastLL.lat});
+            var northWest = mgrs.LLtoUTM({lon:northWestLL.lng, lat:northWestLL.lat});
+            var latCoord = this._snap(southEast.northing);
+
+            // draw horizontal lines and labels
+
+            while (latCoord < northWest.northing ) {
+                latCoord += gridSize;
+                var leftPointUTM = {
+                    northing: latCoord,
+                    easting: northWest.easting,
+                    zoneLetter: center.zoneLetter,
+                    zoneNumber: center.zoneNumber
+                };
+                var leftPointLL = mgrs.UTMtoLL(leftPointUTM);
+                var rightPointUTM = {
+                    northing: latCoord,
+                    easting: southEast.easting,
+                    zoneLetter:center.zoneLetter,
+                    zoneNumber:center.zoneNumber
+                };
+                var rightPointLL = mgrs.UTMtoLL(rightPointUTM);
+                gridLine =  this._cleanHorz(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i],zoneBreaks[i+1]);
+                lines.push(gridLine);
+                if ( labelsInRange & !labelsDrawn) {
+                    labelPt = this._line_intersect(gridLine, latLabelLine);
+                    labelUTM = mgrs.LLtoUTM({lat: labelPt.lat, lon: labelPt.lng });
+                    labelText = latCoord;
+                    this._gridLabels.push(this._label(labelPt, labelText, 'lat'));
+                }
+            }
+            if ( this._gridLabels.length > 0 ) {
+                labelsDrawn = true;
+            }
+
+            // draw vertical lines and labels
+
+            // a rough label buffer - 111111m is approx 1 degree
+            // don't draw a label with 1/4 of the grid spacing to a zone
+            // boundary
+            // TODO: the fractional amount needs to change based on zoom though.
+
+            var labelBuffer = gridSize/111111/4;
+
+            var lonCoord = this._snap(northWest.easting - gridSize);
+            while (lonCoord < southEast.easting){
+                lonCoord += gridSize;
                 var bottomPointUTM = {
                     northing: southEast.northing,
-                    easting: coords[i],
-                    zoneLetter: centerZone,
-                    zoneNumber: centerNumber
+                    easting: lonCoord,
+                    zoneLetter: center.zoneLetter,
+                    zoneNumber:center.zoneNumber
                 };
                 var bottomPointLL = mgrs.UTMtoLL(bottomPointUTM);
+                
                 var topPointUTM = {
                     northing: northWest.northing,
-                    easting: coords[i],
-                    zoneLetter: centerZone,
-                    zoneNumber: centerNumber
+                    easting: lonCoord,
+                    zoneLetter:center.zoneLetter,
+                    zoneNumber:center.zoneNumber
                 };
                 var topPointLL = mgrs.UTMtoLL(topPointUTM);
-                lines.push(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle));
+                gridLine = this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]);
+                lines.push(gridLine);
+                labelPt = this._line_intersect(gridLine, lngLabelLine);
+                if ( labelPt && labelPt.lng > zoneBreaks[i] + labelBuffer && 
+                    labelPt.lng < zoneBreaks[i+1] - labelBuffer) {
+                        labelUTM = mgrs.LLtoUTM({lat: labelPt.lat, lon: labelPt.lng });
+                        hemisphere = (labelPt.lat > 0) ? "N" : "S";
+                        labelText = center.zoneNumber + hemisphere + " " + lonCoord;
+                        this._gridLabels.push(this._label(labelPt, labelText, 'lng'));
+                }
             }
         }
         return lines;
-                },
+
+    }
 });
 
 L.grids.utm = function (options) {
@@ -364,7 +505,7 @@ L.grids.utm = function (options) {
   MILITARY GRID REFERENCE SYSTEM GRIDS
  */
 
-L.Grids.MGRS = L.Grids.extend({
+L.Grids.MGRS = L.Grids.Mercator.extend({
     options: {
              },
     _gridSpacing: function () {
@@ -470,48 +611,6 @@ L.Grids.MGRS = L.Grids.extend({
         }
         return lines;
 
-    },
-    _gridLabels: function () {
-        var labels = [];
-        // for each _horizontalLine
-        // and for each verticalLine
-        // push a label
-        return labels;
-    },
-    _cleanHorz: function (line, leftLng, rightLng) {
-       var pts = line.getLatLngs(); 
-       var options = line.options;
-       var cleanLine;
-       var pt1 = pts[0];
-       var pt2 = pts[pts.length-1];
-       var slope = (pt1.lat-pt2.lat)/(pt1.lng-pt2.lng);
-       // Right side
-       var newRightLat = pt1.lat - (slope * (leftLng - pt2.lng));
-       var newPt2 = L.latLng(newRightLat,rightLng);
-       // Left side
-       var newLeftLat = pt2.lat + (slope * (pt1.lng - rightLng));
-       var newPt1 = L.latLng(newLeftLat,leftLng);
-
-       var cleanLine = L.polyline([newPt1, newPt2], options);
-
-       return cleanLine;
-    },
-
-    _cleanVert: function (line, leftLng, rightLng) {
-       var pts = line.getLatLngs(); 
-       var options = line.options;
-       var pt1 = pts[0];
-       var pt2 = pts[pts.length-1];
-       var slope = (pt1.lat-pt2.lat)/(pt1.lng-pt2.lng);
-       if ( pt2.lng > rightLng) {
-           var newLat = pt1.lat + (slope * (rightLng - pt1.lng));
-           pt2 = L.latLng(newLat,rightLng);
-       } 
-       if ( pt2.lng < leftLng) {
-           var newLat = pt1.lat + (slope * (leftLng - pt1.lng));
-           pt2 = L.latLng(newLat,leftLng);
-       } 
-       return L.polyline([pt1, pt2], options);
     }
 
 });
