@@ -41,6 +41,7 @@ L.Grids = L.LayerGroup.extend({
     redraw: function () {
         this._lngCoords = [],
         this._latCoords = [],
+        this._gridLabels =  [],
         this._mapZoom = this._map.getZoom();
         this._bounds =  this._map.getBounds().pad(0.5);
         this._gridSize = this._gridSpacing();
@@ -49,9 +50,9 @@ L.Grids = L.LayerGroup.extend({
         for (i in gridLines){
             this.addLayer(gridLines[i]);
                     }
-        var labels = this._gridLabels();
-        for (i in labels) {
-            this.addLayer(labels[i]);
+ //       var labels = this._gridLabels();
+        for (i in this._gridLabels) {
+            this.addLayer(this._gridLabels[i]);
         }
         return this;
     },
@@ -65,41 +66,30 @@ L.Grids = L.LayerGroup.extend({
 
     _gridLines: function () {
         var lines = [];
+        var labelPt, labelText
+        var labelBounds = this._map.getBounds().pad(-0.025);
+        var labelNorth = labelBounds.getNorth();
+        var labelWest = labelBounds.getWest();
         var latCoord = this._snap(this._bounds.getSouth());
         var northBound = this._bounds.getNorth();
         while (latCoord < northBound) {
-            this._latCoords.push(latCoord);
+            lines.push(this._horizontalLine(latCoord));
+            labelPt = L.latLng(latCoord, labelWest) 
+            labelText = this._labelFormat(latCoord, 'lat');
+            this._gridLabels.push(this._label(labelPt, labelText,'lat'));
             latCoord += this._gridSize;
         }
         var lngCoord = this._snap(this._bounds.getWest());
         var eastBound = this._bounds.getEast();
         while (lngCoord < eastBound) {
-            this._lngCoords.push(lngCoord);
+            lines.push(this._verticalLine(lngCoord));
+            labelPt = L.latLng(labelNorth, lngCoord) 
+            labelText = this._labelFormat(lngCoord, 'lng');
+            this._gridLabels.push(this._label(labelPt, labelText, 'lng'));
             lngCoord += this._gridSize;
-        }
-        for (i in this._lngCoords) {
-            lines.push(this._verticalLine(this._lngCoords[i]));
-        }
-        for (i in this._latCoords) {
-            lines.push(this._horizontalLine(this._latCoords[i]));
         }
         return lines;
                 },
-
-    _gridLabels: function () {
-        var labels = [];
-        var bounds = this._map.getBounds().pad(-0.025);
-        for (i in this._lngCoords) {
-            latlng = L.latLng(bounds.getNorth(), this._lngCoords[i]) 
-            labels.push(this._label(latlng, 'lng'));
-        }
-        for (i in this._latCoords) {
-            latlng = L.latLng(this._latCoords[i], bounds.getWest());
-            labels.push(this._label(latlng, 'lat'));
-        }
-        console.log(labels);
-        return labels;
-    },
 
     _snap: function (num) {
         return Math.floor(num / this._gridSize) * this._gridSize;
@@ -122,22 +112,13 @@ L.Grids = L.LayerGroup.extend({
                 [lat, this._bounds.getEast()]
             ], options ? options : this.options.lineStyle);
     },
-    _label: function (latlng, direction) {
-        //TODO figure out formatting
-        var labelText
-        if (direction == 'lat') {
-            labelText = latlng.lat;
-        } else if (direction == 'lng') {
-            labelText = latlng.lng;
-        } else if (direction == 'mgrs') {
-            labelText = 'MGRS';
-        }
-        return L.marker(latlng, {
+    _label: function (latLng, labelText, cssClass) {
+        return L.marker(latLng, {
                 icon: L.divIcon({
                     iconSize: [0, 0],
-                    className: 'leaflet-grid-label',
+                    className: 'leaflet-grids-label',
                     //html: '<div class="' + axis + '">' + this.formatCoord(num, axis) + '</div>'
-                    html: '<div class="todo  ">' + labelText+ '</div>'
+                    html: '<div class="grid-label ' + cssClass + '">' + labelText+ '</div>'
                 })
         });
     }
@@ -174,7 +155,19 @@ L.Grids.DD = L.Grids.extend({
             0.01, // 17
             0.01, // 18
         ],
-        coordinateTemplate: '{degAbs}&deg;&nbsp;{minDec}\'{dir}'
+    },
+    _labelFormat: function (coord, dir) {
+        var zoom = this._map.getZoom();
+
+        if ( zoom <= 8 ) {
+            return coord.toFixed(0);
+        } else if ( zoom == 9 ){
+                return coord.toFixed(1);
+        } else if ( zoom == 11 ){
+            return coord.toFixed(1);
+        } else {
+            return coord.toFixed(2);
+        }
     }
 
 
@@ -212,8 +205,37 @@ L.Grids.DMS = L.Grids.extend({
             (1.0 / 240.0), // 17
             (1.0 / 240.0), // 18
         ],
-        coordinateTemplate: '{degAbs}{dir}{min}\'{sec}"'
-             },
+    },
+        _labelFormat: function (coord, dir) {
+            var dirLabel = "";
+            if ( dir == "lat" ) {
+                if ( coord > 0 ) {
+                    dirLabel = "N";
+                } else if ( coord < 0 ) {
+                    dirLabel = "S";
+                }
+            }
+            if ( dir == "lng" ) {
+                if ( coord > 0 ) {
+                    dirLabel = "E";
+                } else if ( coord < 0 ) {
+                    dirLabel = "W";
+                }
+            }
+
+            var deg = Math.floor(coord);
+            var min = Math.floor(( coord - deg ) * 60);
+            var sec = Math.floor((coord - deg - (min/60)) * 3600);
+            var label = Math.abs(deg);
+            var zoom = map.getZoom();
+            if ( zoom > 8) {
+                label += " " + min + "'";
+            }
+            if ( zoom > 14 ) {
+                label += " " + sec + '"';
+            }
+            return label + " " + dirLabel;
+        }
 
 });
 
