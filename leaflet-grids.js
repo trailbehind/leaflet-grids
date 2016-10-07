@@ -48,7 +48,15 @@ L.Grids = L.LayerGroup.extend({
         this.eachLayer(this.removeLayer, this);
         var gridLines = this._gridLines();
         for (i in gridLines){
+            try {
             this.addLayer(gridLines[i]);
+            }
+            catch (err)
+            {
+                console.log(err);
+                console.log("*******");
+                console.log(gridLines[i]);
+            }
                     }
  //       var labels = this._gridLabels();
         for (i in this._gridLabels) {
@@ -324,7 +332,89 @@ L.Grids.Mercator = L.Grids.extend({
         catch(err) {
             return false;
         }
+    },
+
+
+    _lineTrim: function(line, left, right) {
+                   try{
+        var newPt;
+        var done = false;
+        var leftBound = L.polyline([L.latLng(-90, left), L.latLng(90, left)]);
+        var rightBound = L.polyline([L.latLng(-90, right), L.latLng(90, right)]);
+        trimmed = [];
+        for (var k = 0; k < line.length - 1; k++) {
+            var l = line[k];
+            var r = line[k+1];
+            if (l.lon > left && r.lon < right) {
+                //segment doesn't need trimming
+                trimmed.push(l);
+                continue;
+            }
+            var segment = L.polyline([l,r]);
+            if (l.lon < left && r.lon > left) {
+               if ( left % 6 == 0 ) {
+                   newPt = this._line_intersect(segment, leftBound);
+                   trimmed.push(newPt);
+                   continue;
+               } else {
+                   // off screen, don't bother trimming
+                   trimmed.push(l);
+                   continue;
+               }
+            }
+            if (l.lon < right && r.lon > right) {
+               if ( right % 6 == 0 ) {
+                   newPt = this._line_intersect(segment, rightBound);
+                   trimmed.push(l)
+                   trimmed.push(newPt);
+                   done = true;
+                   break;
+               } else {
+                   // off screen, don't bother trimming
+                   trimmed.push(l)
+                   trimmed.push(r)
+                   continue;
+               }
+            }
+            // edge case for vertical lines that lean left
+            if (r.lon < left && l.lon > left) {
+               if ( left % 6 == 0 ) {
+                   newPt = this._line_intersect(segment, leftBound);
+                   console.log("trim");
+                   trimmed.push(l)
+                   trimmed.push(newPt);
+                   done = true;
+                   break;
+               } else {
+                   // off screen, don't bother trimming
+                   trimmed.push(l);
+                   trimmed.push(r);
+                   console.log(r);
+                   continue;
+               }
+            }
+            // don't need to test for segments outside the boundaries
+        }
+        // draw the last point if the line isn't trimmed 
+        if ( !done ) {
+            if (r.lon > left) {
+                trimmed.push(r);
+            }else{
+                newPt = this._line_intersect(segment, leftBound);
+                trimmed.push(newPt);
+            }
+        }
+        return trimmed;
+               }
+catch(err){
+    console.log("TRIM ERROR");
+    console.log (err);
+    console.log(line, left, right);
+    console.log(leftBound, rightBound);
+    return line;
+}
     }
+
 
 
 });
@@ -420,10 +510,88 @@ L.Grids.UTM = L.Grids.Mercator.extend({
             var center = mgrs.LLtoUTM({lon:centerLL.lng, lat:centerLL.lat});
             var southEast = mgrs.LLtoUTM({lon:southEastLL.lng, lat:southEastLL.lat});
             var northWest = mgrs.LLtoUTM({lon:northWestLL.lng, lat:northWestLL.lat});
-            var latCoord = this._snap(southEast.northing);
+
+            // build point array
+            //
+            var latStart = this._snap(southEast.northing);
+            var latStop = this._snap(northWest.northing) + gridSize;
+            var latCount = ((latStop - latStart) / gridSize) + 1;
+            var lonStart = this._snap(northWest.easting) - gridSize;
+            var lonStop = this._snap(southEast.easting) + gridSize;
+            var lonCount = ((lonStop - lonStart) / gridSize) + 1;
+            
+
+            var utmPoints = new Array(latCount);
+            for ( var j = 0; j < latCount; j++ ) {
+                utmPoints[j] = new Array(lonCount);
+            }
+            
+            
+            var llPoints = new Array(latCount);
+            for ( var j = 0; j < latCount; j++ ) {
+                llPoints[j] = new Array(lonCount);
+            }
 
             // draw horizontal lines and labels
+            var latCoord = latStart;
+            var latIndex = 0;
 
+            while (latCoord <= latStop) {
+                var lonCoord = lonStart;
+                var lonIndex = 0;
+                while (lonCoord <= lonStop){
+                    var utmPoint = {
+                        northing: latCoord,
+                        easting: lonCoord,
+                        zoneLetter: center.zoneLetter,
+                        zoneNumber: center.zoneNumber
+                    };
+                    utmPoints[latIndex][lonIndex] = utmPoint;
+                    llPoints[latIndex][lonIndex] =  mgrs.UTMtoLL(utmPoint);
+                    lonIndex ++;
+                    lonCoord += gridSize;
+                }
+                latIndex ++;
+                latCoord += gridSize;
+            }
+            for ( var l = 0; l < latCount; l++) {
+                var linePts = this._lineTrim(llPoints[l], zoneBreaks[i], zoneBreaks[i+1]);
+                var pline = L.polyline(linePts, this.options.lineStyle);
+                lines.push(pline);
+            }
+
+            
+            for ( var l = 0; l < lonCount; l++) {
+                var linePts = this._lineTrim(arrayColumn(llPoints, l), zoneBreaks[i], zoneBreaks[i+1]);
+                var pline = L.polyline(linePts, this.options.lineStyle);
+                lines.push(pline);
+            }
+            // draw longitude labels
+            
+            // a rough label buffer - 111111m is approx 1 degree
+            // don't draw a label with 1/4 of the grid spacing to a zone
+            // boundary
+            // TODO: the fractional amount needs to change based on zoom though.
+            var labelBuffer = gridSize/111111/4;
+
+            for ( var k=0; k < llPoints.length; k++ ) {
+                if ( llPoints[k][0].lat > northLabel ) {
+                    for ( var m=0; m < llPoints[k].length; m++ ) {
+                        labelPt = L.latLng(northLabel, llPoints[k][m].lon);
+                        if ( labelPt && labelPt.lng > zoneBreaks[i] + labelBuffer && 
+                            labelPt.lng < zoneBreaks[i+1] - labelBuffer) {
+                                labelText = utmPoints[k][m].easting;
+                                this._gridLabels.push(this._label(labelPt, labelText, 'lat'));
+                        }
+                    }
+                    break;
+                }
+            }
+
+
+        
+
+            /*
             while (latCoord < northWest.northing ) {
                 latCoord += gridSize;
                 var leftPointUTM = {
@@ -491,6 +659,7 @@ L.Grids.UTM = L.Grids.Mercator.extend({
                         this._gridLabels.push(this._label(labelPt, labelText, 'lng'));
                 }
             }
+            */
         }
         return lines;
 
@@ -816,3 +985,11 @@ LLtoSM = function (point) { // LatLng -> Spherical Mercator
 metersPerPixel = function (lat,zoom) {
    return EARTH_RADIUS * Math.abs(Math.cos(lat / 180 * Math.PI)) / Math.pow(2, zoom+8);
 };
+
+
+// get the column of a 2d array, from
+// http://stackoverflow.com/questions/7848004/get-column-from-a-two-dimensional-array-in-javascript
+
+function arrayColumn(arr, n) {
+      return arr.map(x=> x[n]);
+}
