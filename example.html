@@ -27,8 +27,14 @@
 		attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
 	}).addTo(map);
 
-    L.grids.utm().addTo(map);
-
+// Distance Grids :
+    //L.grids.distance.metric().addTo(map);
+    //L.grids.distance.imperial().addTo(map);
+// LatLng Grids :
+	//L.grids.dms().addTo(map);
+	//L.grids.dd().addTo(map);
+// MGRS Grids :
+	L.grids.mgrs().addTo(map);
 	</script>
 </body>
 </html>
