@@ -745,18 +745,15 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         for (i in this._latCoords) {
             lines.push(this._horizontalLine(this._latCoords[i], this.options.zoneStyle));
         }
-        console.log(lines.length);
         var mapBounds = map.getBounds();
         // show just the zone boundaries if zoomed out too far
         if ( Math.abs(mapBounds.getWest() - mapBounds.getEast()) > 8 ) {
-            console.log('Lower zoom');
             //Show the labels for the zones
             var labelPt;
             for(var u=0;u<longMGRS.length-1;u++){
                 for(var v=0;v<latMGRS.length-1;v++){
                     labelPt = L.latLng(latMGRS[v],longMGRS[u]);
-                    console.log(labelPt);
-                    labelMGRS = mgrs.LLtoMGRS([labelPt.lng,labelPt.lat], .1);
+                    labelMGRS = mgrs.LLtoMGRS([labelPt.lng,labelPt.lat], this._MGRSAccuracy());
                     this._gridLabels.push(this._label(labelPt, labelMGRS));
                 }
             }
