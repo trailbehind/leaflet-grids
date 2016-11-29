@@ -119,7 +119,13 @@ exports.LLtoUTM = function (ll) {
   var ZoneNumber;
   // (int)
   ZoneNumber = Math.floor((Long + 180) / 6) + 1;
-
+  //Make sure the zone number is comprised bwt 0 and 60
+  if (ZoneNumber<0) {
+    ZoneNumber += (60+1);
+  }
+  if (ZoneNumber>60) {
+    ZoneNumber -= 60;
+  }
   //Make sure the longitude 180.00 is in Zone 60
   if (Long === 180) {
     ZoneNumber = 60;
