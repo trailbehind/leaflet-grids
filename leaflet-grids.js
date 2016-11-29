@@ -700,8 +700,14 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         var southBound = this._bounds.getSouth();
         var eastBound = this._bounds.getEast();
         var westBound = this._bounds.getWest();
+
+        // Array for MGRS labelling
+        var longMGRS = [];
+        var latMGRS = []; 
+
         while (latCoord < northBound) {
             this._latCoords.push(latCoord);
+            latMGRS.push(latCoord + 4.0);//Center
             latCoord += 8.0;
         }
         var zoneBreaks = [];
@@ -709,21 +715,33 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         var lngCoord = this._snapTo(westBound, 6.0) + 6.0;
         while (lngCoord < eastBound ) {
             zoneBreaks.push(lngCoord);
+            longMGRS.push(lngCoord + 3.0);//Center
             lngCoord += 6.0;
         }
         zoneBreaks.push(eastBound);
         console.log("BREAKS: ", zoneBreaks);
 
         for (var i=1; i < zoneBreaks.length-1; i++ ) {
-            lines.push(this._verticalLine(zoneBreaks[i], this.options.zoneStyle));
+            lines.push(this._verticalLine(zoneBreaks[i], this.options.zoneStyle)); //_verticalLine returns a polyline
         }
         for (i in this._latCoords) {
             lines.push(this._horizontalLine(this._latCoords[i], this.options.zoneStyle));
         }
+        console.log(lines.length);
         var mapBounds = map.getBounds();
         // show just the zone boundaries if zoomed out too far
         if ( Math.abs(mapBounds.getWest() - mapBounds.getEast()) > 8 ) {
-        //if ( this._mapZoom < 8 ) {
+            console.log('Lower zoom');
+            //Show the labels for the zones
+            var labelPt;
+            for(var u=0;u<longMGRS.length-1;u++){
+                for(var v=0;v<latMGRS.length-1;v++){
+                    labelPt = L.latLng(latMGRS[v],longMGRS[u]);
+                    labelMGRS = mgrs.LLtoMGRS([labelPt.lng,labelPt.lat], .1);
+                    this._gridLabels.push(this._label(labelPt, labelMGRS));
+                }
+            }
+
             return lines;
         };
         // utm grids for all other zooms
@@ -736,7 +754,9 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             var center = mgrs.LLtoUTM({lon:centerLL.lng, lat:centerLL.lat});
             var southEast = mgrs.LLtoUTM({lon:southEastLL.lng, lat:southEastLL.lat});
             var northWest = mgrs.LLtoUTM({lon:northWestLL.lng, lat:northWestLL.lat});
-            var latCoord = this._snap(southEast.northing);
+
+            var latCoord = this._snap(southEast.northing); //use of _gridSize
+            console.log(northWest);
             // draw horizontal lines
             while (latCoord < northWest.northing ) {
                 latCoord += gridSize;
