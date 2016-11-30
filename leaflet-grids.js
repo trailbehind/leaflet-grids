@@ -712,6 +712,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         console.log("ZOOM" + this._mapZoom);
 
         // 6 x 8 grid-zone lines
+        // Labels for those zones are like '4Q' or '10V'
 
         var latCoord = this._snapTo(this._bounds.getSouth(), 8.0);
         var northBound = this._bounds.getNorth();
@@ -737,7 +738,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             lngCoord += 6.0;
         }
         zoneBreaks.push(eastBound);
-        console.log("BREAKS: ", zoneBreaks);
+        //console.log("BREAKS: ", zoneBreaks);
 
         for (var i=1; i < zoneBreaks.length-1; i++ ) {
             lines.push(this._verticalLine(zoneBreaks[i], this.options.zoneStyle)); //_verticalLine returns a polyline
@@ -746,6 +747,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             lines.push(this._horizontalLine(this._latCoords[i], this.options.zoneStyle));
         }
         var mapBounds = map.getBounds();
+
         // show just the zone boundaries if zoomed out too far
         if ( Math.abs(mapBounds.getWest() - mapBounds.getEast()) > 8 ) {
             //Show the labels for the zones
@@ -753,19 +755,21 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             for(var u=0;u<longMGRS.length-1;u++){
                 for(var v=0;v<latMGRS.length-1;v++){
                     labelPt = L.latLng(latMGRS[v],longMGRS[u]);
-                    labelMGRS = mgrs.LLtoMGRS([labelPt.lng,labelPt.lat], this._MGRSAccuracy());
-                    this._gridLabels.push(this._label(labelPt, labelMGRS));
+                    gridLabel = mgrs.LLtoUTM({lat:labelPt.lat,lon:labelPt.lng});
+                    this._gridLabels.push(this._label(labelPt, gridLabel.zoneNumber + gridLabel.zoneLetter));
                 }
             }
-            console.log(this._gridLabels);
             return lines;
         };
+
         // utm grids for all other zooms
         var gridSize = this._gridSize;
         var fFactor = .000001; // keeps calculations at zone boundaries inside the zone
+
         longMGRS = [];
         latMGRS = [];
         this._gridLabels = [];
+
         for (var i=0; i < zoneBreaks.length-1; i++) {
             var northWestLL = L.latLng( northBound, zoneBreaks[i] + fFactor );
             var southEastLL = L.latLng( southBound, zoneBreaks[i+1] - fFactor );
@@ -779,9 +783,11 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             // draw horizontal lines + labels horizontal positionning
             while (latCoord < northWest.northing) {
                 centerLatUTM = latCoord + gridSize/2; //Center
+                latCoord += gridSize;
+
                 var centerPointUTM = {
                     northing: centerLatUTM,
-                    easting: northWest.easting, //Not relevant here
+                    easting: Math.abs(northWest.easting-southEast.easting),//northWest.easting,
                     zoneLetter: center.zoneLetter,
                     zoneNumber: center.zoneNumber
                 };
@@ -803,15 +809,17 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                 };
                 var rightPointLL = mgrs.UTMtoLL(rightPointUTM);
                 lines.push( this._cleanHorz(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i],zoneBreaks[i+1]));
-                latCoord += gridSize;
+                
             }
 
             // draw vertical lines + labels vertical positionning
             var lonCoord = this._snap(northWest.easting - gridSize);
             while (lonCoord < southEast.easting){
                 centerLonUTM = lonCoord + gridSize/2; //Center
+                lonCoord += gridSize;
+
                 var centerPointUTM = {
-                    northing: southEast.northing, //Not relevant here
+                    northing: Math.abs(),//southEast.northing,
                     easting: centerLonUTM,
                     zoneLetter: center.zoneLetter,
                     zoneNumber: center.zoneNumber
@@ -835,7 +843,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                 };
                 var topPointLL = mgrs.UTMtoLL(topPointUTM);
                 lines.push( this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
-                lonCoord += gridSize;
+                
             }
 
             //Display the labels centered in each zone
