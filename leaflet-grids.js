@@ -827,16 +827,26 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         /*
         * THIS SECOND CODE PORTION USES UTM GRID-ZONE LINES + RESPECTIVE LABELS
         */
-        var gridSize = this._gridSize;
+        var gridSize = this._gridSize; // depends on the zoom level
         var fFactor = .000001; // keeps calculations at zone boundaries inside the zone
 
         longMGRS = [];
         latMGRS = [];
         var latLabels = [];
         var lonLabels = [];
-        this._gridLabels = [];
+        lines = [];
+        // Invisible gridLines for labels positionning
+        var horzLines = [];
+        var vertLines = [];
+        var drawnFlag = false;
 
+        // Empty the labels list
+        this._gridLabels = [];
+        console.log(zoneBreaks);
+        console.log(lines.length);
+        console.log(this._bounds);
         for (var i=0; i < zoneBreaks.length-1; i++) {
+            // Map corners and center
             var northWestLL = L.latLng( northBound, zoneBreaks[i] + fFactor );
             var southEastLL = L.latLng( southBound, zoneBreaks[i+1] - fFactor );
             var centerLL = L.latLngBounds(northWestLL,southEastLL).getCenter();
@@ -844,11 +854,10 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             var southEast = mgrs.LLtoUTM({lon:southEastLL.lng, lat:southEastLL.lat});
             var northWest = mgrs.LLtoUTM({lon:northWestLL.lng, lat:northWestLL.lat});
 
-            var latCoord = this._snap(southEast.northing); //use of _gridSize
+            var latCoord = this._snap(southEast.northing);
 
-            // draw horizontal lines + labels horizontal positionning
+            // draw "horizontal" lines + labels horizontal positionning
             while (latCoord < northWest.northing) {
-
                 var leftPointUTM = {
                     northing: latCoord,
                     easting: northWest.easting,
@@ -856,6 +865,9 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                     zoneNumber: center.zoneNumber
                 };
                 var leftPointLL = mgrs.UTMtoLL(leftPointUTM);
+                leftPointUTM.northing += gridSize/2; 
+                var leftPointLabel = mgrs.UTMtoLL(leftPointUTM);
+
                 var rightPointUTM = {
                     northing: latCoord,
                     easting: southEast.easting,
@@ -863,17 +875,20 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                     zoneNumber:center.zoneNumber
                 };
                 var rightPointLL = mgrs.UTMtoLL(rightPointUTM);
-                lines.push( this._cleanHorz(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i],zoneBreaks[i+1]));
-                horzDiff = Math.abs(rightPointLL.lon - leftPointLL.lon);
-                lonLabels.push(leftPointLL.lon + horzDiff/2);
+                rightPointUTM.northing += gridSize/2; 
+                var rightPointLabel = mgrs.UTMtoLL(rightPointUTM);
+ 
+                //lines.push(this._cleanHorz(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
+                horzLines.push(this._cleanHorz(L.polyline([leftPointLabel,rightPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
 
                 latCoord += gridSize;
-
             }
-            // draw vertical lines + labels vertical positionning
-            var lonCoord = this._snap(northWest.easting - gridSize);
-            while (lonCoord < southEast.easting){
 
+            // draw "vertical" lines + labels vertical positionning
+            var lonCoord = this._snap(northWest.easting - gridSize);
+            console.log('for loop');
+            while (lonCoord < southEast.easting){
+                //console.log(lonCoord);
                 var bottomPointUTM = {
                     northing: southEast.northing,
                     easting: lonCoord,
@@ -881,7 +896,9 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                     zoneNumber:center.zoneNumber
                 };
                 var bottomPointLL = mgrs.UTMtoLL(bottomPointUTM);
-                
+                bottomPointUTM.easting += gridSize/2;
+                bottomPointLabel = mgrs.UTMtoLL(bottomPointUTM);
+
                 var topPointUTM = {
                     northing: northWest.northing,
                     easting: lonCoord,
@@ -889,25 +906,34 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                     zoneNumber:center.zoneNumber
                 };
                 var topPointLL = mgrs.UTMtoLL(topPointUTM);
-                lines.push( this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
-                vertDiff = Math.abs(bottomPointLL.lat-topPointLL.lat);
-                latLabels.push(bottomPointLL.lat + vertDiff/2);
+                topPointUTM.easting += gridSize/2;
+                topPointLabel = mgrs.UTMtoLL(topPointUTM);
+
+                lines.push(this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
+                console.log(lonCoord);
+                console.log(bottomPointLL);
+                L.marker(topPointLL).addTo(this._map);
+                //vertLines.push(this._cleanVert(L.polyline([bottomPointLabel,topPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
 
                 lonCoord += gridSize;
             }
         }
-
+        console.log(lines.length);
         //Display the labels centered in each zone
         var labelPt;
-        for(var u=0;u<lonLabels.length-1;u++){
-            for(var v=0;v<latLabels.length-1;v++){
-                labelPt = L.latLng(latLabels[v],lonLabels[u]);
-                //labelMGRS = mgrs.LLtoMGRS([labelPt.lng,labelPt.lat], this._MGRSAccuracy());
-                this._gridLabels.push(this._label(labelPt, 'A'));
+        for (x in horzLines){
+            for (y in vertLines){
+                labelPt = this._line_intersect(horzLines[x], vertLines[y]);
+                gridLabel = mgrs.LLtoMGRS([labelPt.lng, labelPt.lat], this._MGRSAccuracy());
+                if (!drawnFlag){
+                    this._gridLabels.push(this._label(labelPt, gridLabel));
+                }        
             }
         }
-        console.log(this._gridLabels.length);
-        
+        if (this._gridLabels.length > 0){
+            drawnFlag = true;
+        }
+
         return lines;
 
     }
