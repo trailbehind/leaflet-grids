@@ -709,10 +709,10 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         return NaN;
     },
     _gridLines: function () {
+        /*
+        * THIS FIRST CODE PORTION IS RESPONSIBLE FOR DRAWING 6 x 8 GRID-ZONE LINES + RESPECTIVE LABELS
+        */
         var lines = [];
-        //console.log("ZOOM" + this._mapZoom);
-
-        // 6 x 8 grid-zone lines
         var latCoord = this._snapTo(this._bounds.getSouth(), 8.0);
         if (latCoord < -80.0){
             latCoord = -80.0;
@@ -722,17 +722,17 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         var southBound = this._bounds.getSouth();
         var eastBound = this._bounds.getEast();
         var westBound = this._bounds.getWest();
-        console.log(southBound);
+
         var longMGRS = [];
         var latMGRS = [];
 
         while (latCoord < northBound && latCoord <= 84) {
             this._latCoords.push(latCoord);
-            console.log(latCoord);
-            latMGRS.push(latCoord + 4.0); //TO DO: Center in the X range as well
             if(latCoord==72.0){
+                latMGRS.push(latCoord + 6.0);
                 latCoord += 12.0; // Zone X is "higher" than the rest
             }else{
+                latMGRS.push(latCoord + 4.0);
                 latCoord += 8.0;
             }
         }
@@ -759,7 +759,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             // Region to make Norway & Svagard happy
             }else{
                 options.upLimit = 56;
-                //lines.push(this._verticalLine(zoneBreaks[i], options));
+                lines.push(this._verticalLine(zoneBreaks[i], options));
 
             }
         }
@@ -795,25 +795,25 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         options.downLimit = 64.0; 
         handleSpecialZones(longArray, options);
 
+        var previousLat, 
+            previousLong;
         for (i in this._latCoords) {
             lines.push(this._horizontalLine(this._latCoords[i], this.options.zoneStyle));
             // For the zone below the irregularity zone
-            // if(this._latCoords[i] < 56.0){
-            //     centerLat = this._latCoords[i] + Math.abs(this._latCoords[i]-this._latCoords[i+1])/2.0;
-            //     for (i in longArray){
-            //         lines.push(this._verticalLine(longArray[i], options));
-            //         previous = longArray[i-1] ? longArray[i-1] : 0.0;
-            //         labelPt = L.latLng(centerLat, previous+((longArray[i]-previous)/2.0));
-            //         this._gridLabels.push(superThis._label(labelPt, gridLabel.zoneNumber + gridLabel.zoneLetter));
-            //     }
-            //}
+            if(this._latCoords[i] <= 56.0 && this._latCoords[i] > -80.0){
+                for (j in longArray) {
+                    previousLat = this._latCoords[i-1] ? this._latCoords[i-1] : -80.0;
+                    centerLat = previousLat + Math.abs(this._latCoords[i]-previousLat)/2.0;
+                    previousLong = longArray[j-1] ? longArray[j-1] : 0.0;
+                    labelPt = L.latLng(centerLat, previousLong+((longArray[j]-previousLong)/2.0));
+                    gridLabel = mgrs.LLtoUTM({lat:labelPt.lat,lon:labelPt.lng});
+                    this._gridLabels.push(this._label(labelPt, gridLabel.zoneNumber + gridLabel.zoneLetter));
+                }
+            }
         }
 
-        var mapBounds = map.getBounds();
-
-        // show just the zone boundaries if zoomed out too far
+        var mapBounds = map.getBounds(); // show just the zone boundaries if zoomed out too far
         if ( Math.abs(mapBounds.getWest() - mapBounds.getEast()) > 8 ) {
-            //Show the labels for the zones
             for(var u=0;u<longMGRS.length-1;u++){
                 for(var v=0;v<latMGRS.length-1;v++){
                     labelPt = L.latLng(latMGRS[v],longMGRS[u]);
@@ -824,7 +824,9 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             return lines;
         };
 
-        // UTM grids for all other zooms
+        /*
+        * THIS SECOND CODE PORTION USES UTM GRID-ZONE LINES + RESPECTIVE LABELS
+        */
         var gridSize = this._gridSize;
         var fFactor = .000001; // keeps calculations at zone boundaries inside the zone
 
