@@ -132,8 +132,13 @@ exports.LLtoUTM = function (ll) {
   }
 
   // Special zone for Norway
+  // Between lat 56 and 64 : zone 32 has been widened to 9deg 
+  // and zone 31 has been narrowed to 3deg
   if (Lat >= 56.0 && Lat < 64.0 && Long >= 3.0 && Long < 12.0) {
     ZoneNumber = 32;
+  }
+  if (Lat >= 56.0 && Lat < 64.0 && Long >= 0.0 && Long < 3.0) {
+    ZoneNumber = 31;
   }
 
   // Special zones for Svalbard

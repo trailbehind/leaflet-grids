@@ -71,7 +71,6 @@ L.Grids = L.LayerGroup.extend({
         return this.options.coordinateGridSpacing[zoom];
     },
         
-
     _gridLines: function () {
         var lines = [];
         var labelPt, labelText
@@ -108,10 +107,12 @@ L.Grids = L.LayerGroup.extend({
     },
 
     _verticalLine: function (lng, options) {
+        var upLimit = options.upLimit ? options.upLimit : this._bounds.getNorth();
+        var downLimit = options.downLimit ? options.downLimit : this._bounds.getSouth();
         return L.polyline([
-                [this._bounds.getNorth(), lng],
-                [this._bounds.getSouth(), lng]
-            ], options ? options : this.options.lineStyle);
+                [upLimit, lng],
+                [downLimit, lng]
+            ], options.style ? options.style : this.options.lineStyle);
     },
 
     _horizontalLine: function (lat, options) {
@@ -712,46 +713,107 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         //console.log("ZOOM" + this._mapZoom);
 
         // 6 x 8 grid-zone lines
-        // Labels for those zones are like '4Q' or '10V'
-
         var latCoord = this._snapTo(this._bounds.getSouth(), 8.0);
+        if (latCoord < -80.0){
+            latCoord = -80.0;
+        }
+
         var northBound = this._bounds.getNorth();
         var southBound = this._bounds.getSouth();
         var eastBound = this._bounds.getEast();
         var westBound = this._bounds.getWest();
-
-        // Array for MGRS labelling
+        console.log(southBound);
         var longMGRS = [];
-        var latMGRS = []; 
+        var latMGRS = [];
 
-        while (latCoord < northBound) {
+        while (latCoord < northBound && latCoord <= 84) {
             this._latCoords.push(latCoord);
-            latMGRS.push(latCoord + 4.0);//Center
-            latCoord += 8.0;
+            console.log(latCoord);
+            latMGRS.push(latCoord + 4.0); //TO DO: Center in the X range as well
+            if(latCoord==72.0){
+                latCoord += 12.0; // Zone X is "higher" than the rest
+            }else{
+                latCoord += 8.0;
+            }
         }
         var zoneBreaks = [];
         var zoneBreaks = [westBound];
         var lngCoord = this._snapTo(westBound, 6.0) + 6.0;
         while (lngCoord < eastBound ) {
             zoneBreaks.push(lngCoord);
-            longMGRS.push(lngCoord + 3.0);//Center
             lngCoord += 6.0;
         }
         zoneBreaks.push(eastBound);
-        //console.log("BREAKS: ", zoneBreaks);
 
-        for (var i=1; i < zoneBreaks.length-1; i++ ) {
-            lines.push(this._verticalLine(zoneBreaks[i], this.options.zoneStyle)); //_verticalLine returns a polyline
+        var options = {
+            style: this.options.zoneStyle,
+            upLimit: null,
+            downLimit: -80.0,
         }
+        for (var i=1; i < zoneBreaks.length-1; i++ ) {
+            // Region of the world with no vertical grid exception
+            if (zoneBreaks[i] <= 0.0 || zoneBreaks[i] >= 42.0){ 
+                options.upLimit = 84;
+                lines.push(this._verticalLine(zoneBreaks[i], options));
+                longMGRS.push(zoneBreaks[i-1]+3);
+            // Region to make Norway & Svagard happy
+            }else{
+                options.upLimit = 56;
+                //lines.push(this._verticalLine(zoneBreaks[i], options));
+
+            }
+        }
+
+        var superThis = this;
+        var labelPt;
+        var handleSpecialZones = function(longArray, options){
+            var centerLat = options.downLimit + Math.abs(options.upLimit - options.downLimit)/2.0;
+            for (i in longArray){
+                lines.push(superThis._verticalLine(longArray[i], options));
+                previous = longArray[i-1] ? longArray[i-1] : 0.0;
+                labelPt = L.latLng(centerLat, previous+((longArray[i]-previous)/2.0));
+                gridLabel = mgrs.LLtoUTM({lat:labelPt.lat,lon:labelPt.lng});
+                superThis._gridLabels.push(superThis._label(labelPt, gridLabel.zoneNumber + gridLabel.zoneLetter));
+            }
+        }
+
+        // For Norway special case
+        var longArray = [3.0, 12.0, 18.0, 24.0, 30.0, 36.0];
+        options.upLimit = 64.0; 
+        options.downLimit = 56.0;
+        handleSpecialZones(longArray, options);
+
+        // For Svagard special case 
+        longArray = [9.0, 21.0, 33.0]; 
+        options.upLimit = 84.0; 
+        options.downLimit = 72.0; 
+        handleSpecialZones(longArray, options);
+        
+        // For the zone in between 
+        longArray = [6.0, 12.0, 18.0, 24.0, 30.0, 36.0]; 
+        options.upLimit = 72.0; 
+        options.downLimit = 64.0; 
+        handleSpecialZones(longArray, options);
+
         for (i in this._latCoords) {
             lines.push(this._horizontalLine(this._latCoords[i], this.options.zoneStyle));
+            // For the zone below the irregularity zone
+            // if(this._latCoords[i] < 56.0){
+            //     centerLat = this._latCoords[i] + Math.abs(this._latCoords[i]-this._latCoords[i+1])/2.0;
+            //     for (i in longArray){
+            //         lines.push(this._verticalLine(longArray[i], options));
+            //         previous = longArray[i-1] ? longArray[i-1] : 0.0;
+            //         labelPt = L.latLng(centerLat, previous+((longArray[i]-previous)/2.0));
+            //         this._gridLabels.push(superThis._label(labelPt, gridLabel.zoneNumber + gridLabel.zoneLetter));
+            //     }
+            //}
         }
+
         var mapBounds = map.getBounds();
 
         // show just the zone boundaries if zoomed out too far
         if ( Math.abs(mapBounds.getWest() - mapBounds.getEast()) > 8 ) {
             //Show the labels for the zones
-            var labelPt;
             for(var u=0;u<longMGRS.length-1;u++){
                 for(var v=0;v<latMGRS.length-1;v++){
                     labelPt = L.latLng(latMGRS[v],longMGRS[u]);
