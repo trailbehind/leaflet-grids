@@ -834,7 +834,6 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         latMGRS = [];
         var latLabels = [];
         var lonLabels = [];
-        lines = [];
         // Invisible gridLines for labels positionning
         var horzLines = [];
         var vertLines = [];
@@ -878,7 +877,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                 rightPointUTM.northing += gridSize/2; 
                 var rightPointLabel = mgrs.UTMtoLL(rightPointUTM);
  
-                //lines.push(this._cleanHorz(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
+                lines.push(this._cleanHorz(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
                 horzLines.push(this._cleanHorz(L.polyline([leftPointLabel,rightPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
 
                 latCoord += gridSize;
@@ -910,10 +909,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                 topPointLabel = mgrs.UTMtoLL(topPointUTM);
 
                 lines.push(this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
-                console.log(lonCoord);
-                console.log(bottomPointLL);
-                L.marker(topPointLL).addTo(this._map);
-                //vertLines.push(this._cleanVert(L.polyline([bottomPointLabel,topPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
+                vertLines.push(this._cleanVert(L.polyline([bottomPointLabel,topPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
 
                 lonCoord += gridSize;
             }
@@ -921,21 +917,20 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         console.log(lines.length);
         //Display the labels centered in each zone
         var labelPt;
+        var h =0;
         for (x in horzLines){
             for (y in vertLines){
                 labelPt = this._line_intersect(horzLines[x], vertLines[y]);
                 gridLabel = mgrs.LLtoMGRS([labelPt.lng, labelPt.lat], this._MGRSAccuracy());
-                if (!drawnFlag){
-                    this._gridLabels.push(this._label(labelPt, gridLabel));
+                if(this._bounds.contains(labelPt)){
+                    //this._gridLabels.push(this._label(labelPt, gridLabel));
+                    L.marker(labelPt).addTo(this._map);
+                    h += 1;
                 }        
             }
         }
-        if (this._gridLabels.length > 0){
-            drawnFlag = true;
-        }
-
+        console.log(h);
         return lines;
-
     }
 
 });
