@@ -373,7 +373,7 @@ function encode(utm, accuracy) {
   var seasting = "" + utm.easting,
     snorthing = "" + utm.northing;
 
-  return utm.zoneNumber + utm.zoneLetter + get100kID(utm.easting, utm.northing, utm.zoneNumber) + seasting.substr(seasting.length - 5, accuracy) + snorthing.substr(snorthing.length - 5, accuracy);
+  return utm.zoneNumber + utm.zoneLetter + get100kID(utm.easting, utm.northing, utm.zoneNumber) + seasting.substr(0, accuracy) + snorthing.substr(0, accuracy);
 }
 
 /**
