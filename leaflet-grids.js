@@ -43,7 +43,7 @@ L.Grids = L.LayerGroup.extend({
         this._latCoords = [],
         this._gridLabels =  [],
         this._mapZoom = this._map.getZoom();
-        this._bounds =  this._map.getBounds().pad(0.5);
+        this._bounds =  this._map.getBounds();//.pad(0.5);
         this._gridSize = this._gridSpacing();
         this.eachLayer(this.removeLayer, this);
         var gridLines = this._gridLines();
@@ -297,14 +297,11 @@ L.Grids.Mercator = L.Grids.extend({
 
     /* find the intersection of two lines
      * uses the first and last point only!
-     * based on
-     * http://stackoverflow.com/questions/13937782/calculating-the-point-of-intersection-of-two-lines
-     * which is based on
-     * http://paulbourke.net/geometry/pointlineplane/
-     */
-    
+     * based on line equations
+     */    
 
     _line_intersect: function(line1, line2) {
+        // Get the first and last point of the two given segments
         var line1Pts = line1.getLatLngs();
         var line2Pts = line2.getLatLngs();
         var pt1 = line1Pts[0];
@@ -319,19 +316,28 @@ L.Grids.Mercator = L.Grids.extend({
         var y3 = pt3.lat;
         var x4 = pt4.lng;
         var y4 = pt4.lat;
-        var x, y, ua, ub, denom = (y4 - y3)*(x2 - x1) - (x4 - x3)*(y2 - y1);
-        if (denom == 0) {
-            return false;
+
+        // Lines equation 
+        var slope1 = (y2-y1)/(x2-x1); 
+        var b1 = y1 - slope1*x1;
+        var slope2 = (y4-y3)/(x4-x3); 
+        var b2 = y3 - slope2*x3;
+
+        // Intersection point of 2 lines
+        if (slope1 != slope2){
+            var x = (b2-b1)/(slope1-slope2);
+        }else{
+            return false; // Lines are parallels
         }
-        ua = ((x4 - x3)*(y1 - y3) - (y4 - y3)*(x1 - x3))/denom;
-        ub = ((x2 - x1)*(y1 - y3) - (y2 - y1)*(x1 - x3))/denom;
-        x = x1 + ua*(x2 - x1);
-        y = y1 + ua*(y2 - y1);
-        try {
-        return L.latLng(y,x)
-        }
-        catch(err) {
-            return false;
+
+        var y = slope1 * x + b1; 
+
+        // line1 and line2 are segments not lines so :
+        // (x,y) must belong to the x-domain and y-domain of the two segments
+        if (x > Math.min(x1,x2) && x < Math.max(x1,x2) && x > Math.min(x3,x4) && x < Math.max(x3,x4)){
+            return L.latLng(y,x);
+        }else{
+            return false; // segments do not intersect
         }
     },
 
@@ -713,6 +719,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         * THIS FIRST CODE PORTION IS RESPONSIBLE FOR DRAWING 6 x 8 GRID-ZONE LINES + RESPECTIVE LABELS
         */
         var lines = [];
+        this._bounds =  this._map.getBounds().pad(0.1); // Adding 1/10 of the current view in each direction
         var latCoord = this._snapTo(this._bounds.getSouth(), 8.0);
         if (latCoord < -80.0){
             latCoord = -80.0;
@@ -838,11 +845,11 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         var horzLines = [];
         var vertLines = [];
         var drawnFlag = false;
-
+        lines = [];
         // Empty the labels list
         this._gridLabels = [];
         console.log(zoneBreaks);
-        console.log(lines.length);
+        //console.log(lines.length);
         console.log(this._bounds);
         for (var i=0; i < zoneBreaks.length-1; i++) {
             // Map corners and center
@@ -854,7 +861,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             var northWest = mgrs.LLtoUTM({lon:northWestLL.lng, lat:northWestLL.lat});
 
             var latCoord = this._snap(southEast.northing);
-
+            console.log(northWestLL, southEastLL);
             // draw "horizontal" lines + labels horizontal positionning
             while (latCoord < northWest.northing) {
                 var leftPointUTM = {
@@ -879,13 +886,12 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
  
                 lines.push(this._cleanHorz(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
                 horzLines.push(this._cleanHorz(L.polyline([leftPointLabel,rightPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
-
                 latCoord += gridSize;
             }
-
+            //console.log(lines);
             // draw "vertical" lines + labels vertical positionning
             var lonCoord = this._snap(northWest.easting - gridSize);
-            console.log('for loop');
+            //console.log('for loop');
             while (lonCoord < southEast.easting){
                 //console.log(lonCoord);
                 var bottomPointUTM = {
@@ -910,11 +916,10 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
 
                 lines.push(this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
                 vertLines.push(this._cleanVert(L.polyline([bottomPointLabel,topPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
-
                 lonCoord += gridSize;
             }
         }
-        console.log(lines.length);
+        console.log('Number of lines drawn : ' + lines.length);
         //Display the labels centered in each zone
         var labelPt;
         var h =0;
@@ -923,13 +928,10 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                 labelPt = this._line_intersect(horzLines[x], vertLines[y]);
                 gridLabel = mgrs.LLtoMGRS([labelPt.lng, labelPt.lat], this._MGRSAccuracy());
                 if(this._bounds.contains(labelPt)){
-                    //this._gridLabels.push(this._label(labelPt, gridLabel));
-                    L.marker(labelPt).addTo(this._map);
-                    h += 1;
+                    this._gridLabels.push(this._label(labelPt, gridLabel));
                 }        
             }
         }
-        console.log(h);
         return lines;
     }
 

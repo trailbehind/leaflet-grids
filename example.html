@@ -23,11 +23,14 @@
 	<script type="text/javascript">
 	// Lat 48-50 
 	// Long 126-120
-	var map = L.map('map').setView([55,11.5],11.5);
-
-	//L.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
-	//	attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-	//}).addTo(map);
+	var map = L.map('map');
+	map.fitBounds([
+    	[49, -123],
+    	[50, -120]
+		]); 
+	L.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
+		attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+	}).addTo(map);
 
 // Distance Grids :
     //L.grids.distance.metric().addTo(map);
