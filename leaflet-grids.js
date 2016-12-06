@@ -803,7 +803,11 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             // For the zone below the irregularity zone
             if(this._latCoords[i] <= 56.0 && this._latCoords[i] > -80.0){
                 for (j in longArray) {
-                    previousLat = this._latCoords[i-1] ? this._latCoords[i-1] : -80.0;
+                    if(this._latCoords[i-1] === 0){
+                        previousLat = 0; 
+                    }else{
+                        previousLat = this._latCoords[i-1] ? this._latCoords[i-1] : -80.0;
+                    }
                     centerLat = previousLat + Math.abs(this._latCoords[i]-previousLat)/2.0;
                     previousLong = longArray[j-1] ? longArray[j-1] : 0.0;
                     labelPt = L.latLng(centerLat, previousLong+((longArray[j]-previousLong)/2.0));
@@ -831,20 +835,15 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         var gridSize = this._gridSize; // depends on the zoom level
         var fFactor = .000001; // keeps calculations at zone boundaries inside the zone
         this._bounds =  this._map.getBounds().pad(0.1); // Adding 1/10 of the current view in each direction
-        longMGRS = [];
-        latMGRS = [];
-        var latLabels = [];
-        var lonLabels = [];
+
         // Invisible gridLines for labels positionning
         var horzLines = [];
         var vertLines = [];
         var drawnFlag = false;
-        lines = [];
+
         // Empty the labels list
         this._gridLabels = [];
-        console.log(zoneBreaks);
-        //console.log(lines.length);
-        console.log(this._bounds);
+
         for (var i=0; i < zoneBreaks.length-1; i++) {
             // Map corners and center
             var northWestLL = L.latLng( northBound, zoneBreaks[i] + fFactor );
@@ -882,12 +881,9 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                 horzLines.push(this._cleanHorz(L.polyline([leftPointLabel,rightPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
                 latCoord += gridSize;
             }
-            //console.log(lines);
             // draw "vertical" lines + labels vertical positionning
             var lonCoord = this._snap(northWest.easting - gridSize);
-            //console.log('for loop');
             while (lonCoord < southEast.easting){
-                //console.log(lonCoord);
                 var bottomPointUTM = {
                     northing: southEast.northing,
                     easting: lonCoord,
@@ -913,8 +909,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                 lonCoord += gridSize;
             }
         }
-        console.log('Gridsize : ' + gridSize);
-        console.log('Zoom : ' + this._mapZoom);
+
         //Display the labels centered in each zone
         var labelPt;
         var h =0;
