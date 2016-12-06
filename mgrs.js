@@ -42,7 +42,6 @@ var Z = 90; // Z
  * @return {string} the MGRS string for the given location and accuracy.
  */
 exports.LLtoMGRS = function(ll, accuracy) {
-  accuracy = accuracy || 5; // default accuracy 1m
   return encode(exports.LLtoUTM({
     lat: ll[1],
     lon: ll[0]
@@ -372,8 +371,11 @@ function getLetterDesignator(lat) {
 function encode(utm, accuracy) {
   var seasting = "" + utm.easting,
     snorthing = "" + utm.northing;
-
-  return utm.zoneNumber + utm.zoneLetter + get100kID(utm.easting, utm.northing, utm.zoneNumber) + seasting.substr(0, accuracy) + snorthing.substr(0, accuracy);
+  if (accuracy === 0){
+    return utm.zoneNumber + utm.zoneLetter + get100kID(utm.easting, utm.northing, utm.zoneNumber);
+  }else{
+    return utm.zoneNumber + utm.zoneLetter + get100kID(utm.easting, utm.northing, utm.zoneNumber) + seasting.substr(0, accuracy) + snorthing.substr(0, accuracy);
+  }
 }
 
 /**

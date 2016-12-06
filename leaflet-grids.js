@@ -697,20 +697,14 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         return NaN;
     },
     _MGRSAccuracy: function () {
-        if ( this._mapZoom < 6 ) {
+        if ( this._mapZoom < 10 ) {
+            return 0;
+        };
+        if ( this._mapZoom < 15 ) {
             return 1;
         };
-        if ( this._mapZoom < 9 ) {
+        if ( this._mapZoom < 18 )  {
             return 2;
-        };
-        if ( this._mapZoom < 12 ) {
-            return 3;
-        };
-        if ( this._mapZoom < 15 )  {
-            return 4;
-        };
-        if ( this._mapZoom < 18 ) {
-            return 5;
         };
         return NaN;
     },
@@ -919,7 +913,8 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
                 lonCoord += gridSize;
             }
         }
-        console.log('Number of lines drawn : ' + lines.length);
+        console.log('Gridsize : ' + gridSize);
+        console.log('Zoom : ' + this._mapZoom);
         //Display the labels centered in each zone
         var labelPt;
         var h =0;
