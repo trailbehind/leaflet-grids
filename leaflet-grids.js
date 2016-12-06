@@ -712,6 +712,10 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         /*
         * THIS FIRST CODE PORTION IS RESPONSIBLE FOR DRAWING 6 x 8 GRID-ZONE LINES + RESPECTIVE LABELS
         */
+        // No grid for lowest map zoom
+        if (this._mapZoom < 3){
+        	return null;
+        }
         var lines = [];
         this._bounds =  this._map.getBounds().pad(0.5); // Adding 1/2 of the current view in each direction
         var latCoord = this._snapTo(this._bounds.getSouth(), 8.0);
