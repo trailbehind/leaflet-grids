@@ -694,8 +694,12 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         if ( this._mapZoom < 18 ) {
             return 1000;
         };
+        if ( this._mapZoom <= 20 ) {
+            return 100;
+        };
         return NaN;
     },
+    // TO DO: Maybe group with _gridSpacing if same limit values
     _MGRSAccuracy: function () {
         if ( this._mapZoom < 10 ) {
             return 0;
@@ -705,6 +709,9 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         };
         if ( this._mapZoom < 18 )  {
             return 2;
+        };
+        if ( this._mapZoom <= 20 )  {
+            return 3;
         };
         return NaN;
     },
@@ -887,7 +894,10 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             }
             // draw "vertical" lines + labels vertical positionning
             var lonCoord = this._snap(northWest.easting - gridSize);
+            console.log('Start point : ' + lonCoord);
+            console.log('Until : ' + southEast.easting);
             while (lonCoord < southEast.easting){
+            	console.log(lonCoord);
                 var bottomPointUTM = {
                     northing: southEast.northing,
                     easting: lonCoord,
