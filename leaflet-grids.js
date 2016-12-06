@@ -894,10 +894,7 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
             }
             // draw "vertical" lines + labels vertical positionning
             var lonCoord = this._snap(northWest.easting - gridSize);
-            console.log('Start point : ' + lonCoord);
-            console.log('Until : ' + southEast.easting);
             while (lonCoord < southEast.easting){
-            	console.log(lonCoord);
                 var bottomPointUTM = {
                     northing: southEast.northing,
                     easting: lonCoord,
@@ -962,12 +959,16 @@ L.Grids.Distance = L.Grids.extend({
     },
 
     _gridLines: function () {
+        // No grid for lowest map zoom
+        if (this._mapZoom < 3){
+        	return null;
+        }
         var lines = [];
         var zoom = this._map.getZoom();
         var metersAtEquator = metersPerPixel(0, zoom);
         var metersAtLat = metersPerPixel(this._map.getCenter().lat, zoom);
         var gridSize = this._gridSize * metersAtEquator / metersAtLat;
-        console.log(this.gridLabel);
+
         var latCoord = LLtoSM(this._map.getCenter()).y;
         var latCoordUp = latCoord;
         var latCoordDown = latCoord;
@@ -975,10 +976,12 @@ L.Grids.Distance = L.Grids.extend({
         var westBound = LLtoSM(this._bounds.getSouthWest()).x;
         var northBound = LLtoSM(this._bounds.getNorthWest()).y;
         var southBound = LLtoSM(this._bounds.getSouthWest()).y;
+
         // draw center horizontal line
         var leftPointCenter = SMtoLL(L.point(westBound,latCoord));
         var rightPointCenter = SMtoLL(L.point(eastBound,latCoord));
         lines.push( L.polyline([leftPointCenter,rightPointCenter], this.options.lineStyle));
+
         // draw horizontal lines from center out
         while (latCoordUp < northBound) {
             latCoordUp += gridSize;
@@ -997,6 +1000,7 @@ L.Grids.Distance = L.Grids.extend({
         var topPointCenter = SMtoLL(L.point(lngCoord,northBound));
         var bottomPointCenter = SMtoLL(L.point(lngCoord,southBound));
         lines.push(L.polyline([topPointCenter,bottomPointCenter], this.options.lineStyle));
+
         // draw vertical lines from center out
         while (lngCoordRight < eastBound) {
             lngCoordRight += gridSize;
@@ -1009,9 +1013,7 @@ L.Grids.Distance = L.Grids.extend({
             }
         }
         return lines;
-                },
-
-
+    },
 });
 
 L.grids.distance = {};
@@ -1058,7 +1060,7 @@ L.Grids.Distance.Metric = L.Grids.Distance.extend({
             "250 m", // 15
             "100 m", // 16
             "50 m", // 17
-            "10 m", // 18
+            "25 m", // 18
              ]
 
         },
