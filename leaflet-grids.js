@@ -952,23 +952,27 @@ L.Grids.Distance = L.Grids.extend({
     _gridSpacing: function() {
         var zoom = this._map.getZoom();
         var lat = this._map.getCenter().lat;
-        if (Math.abs(lat) > 55) {zoom += 1;}
-        if (zoom > 18) {zoom = 18;}
+        if (Math.abs(lat) > 55) {
+            zoom += 1;
+        }
+        if (zoom > 18) {
+            zoom = 18;
+        }
         this.gridLabel = this.options.gridSpacingLabel[zoom];
         return this.options.coordinateGridSpacing[zoom];
     },
 
     _gridLines: function () {
-        // No grid for lowest map zoom
-        if (this._mapZoom < 3){
-        	return null;
-        }
         var lines = [];
         var zoom = this._map.getZoom();
+        if (zoom < 3){
+            return null;
+        }
         var metersAtEquator = metersPerPixel(0, zoom);
         var metersAtLat = metersPerPixel(this._map.getCenter().lat, zoom);
         var gridSize = this._gridSize * metersAtEquator / metersAtLat;
 
+        console.log(this.gridLabel);
         var latCoord = LLtoSM(this._map.getCenter()).y;
         var latCoordUp = latCoord;
         var latCoordDown = latCoord;
@@ -976,12 +980,10 @@ L.Grids.Distance = L.Grids.extend({
         var westBound = LLtoSM(this._bounds.getSouthWest()).x;
         var northBound = LLtoSM(this._bounds.getNorthWest()).y;
         var southBound = LLtoSM(this._bounds.getSouthWest()).y;
-
         // draw center horizontal line
         var leftPointCenter = SMtoLL(L.point(westBound,latCoord));
         var rightPointCenter = SMtoLL(L.point(eastBound,latCoord));
         lines.push( L.polyline([leftPointCenter,rightPointCenter], this.options.lineStyle));
-
         // draw horizontal lines from center out
         while (latCoordUp < northBound) {
             latCoordUp += gridSize;
@@ -1000,7 +1002,6 @@ L.Grids.Distance = L.Grids.extend({
         var topPointCenter = SMtoLL(L.point(lngCoord,northBound));
         var bottomPointCenter = SMtoLL(L.point(lngCoord,southBound));
         lines.push(L.polyline([topPointCenter,bottomPointCenter], this.options.lineStyle));
-
         // draw vertical lines from center out
         while (lngCoordRight < eastBound) {
             lngCoordRight += gridSize;
@@ -1040,15 +1041,15 @@ L.Grids.Distance.Metric = L.Grids.Distance.extend({
             100, // 16
             50, // 17
             25 // 18
-            ],
+        ],
         gridSpacingLabel: [
-            "250,000 km", // 0 
-            "100,000 km", // 1
-            "50,000 km", // 2
-            "25,000 km", // 3
-            "10,000 km", // 4
-            "5000 km", // 5
-            "2500 km", // 6
+            "25,000 km", // 0 
+            "10,000 km", // 1
+            "5000 km", // 2
+            "2500 km", // 3
+            "1000 km", // 4
+            "500 km", // 5
+            "250 km", // 6
             "100 km", // 7
             "50 km", // 8
             "25 km", // 9
@@ -1061,8 +1062,8 @@ L.Grids.Distance.Metric = L.Grids.Distance.extend({
             "100 m", // 16
             "50 m", // 17
             "25 m", // 18
-             ]
-        },
+        ]
+    }
 });
 
 L.grids.distance.metric = function (options) {
@@ -1092,7 +1093,7 @@ L.Grids.Distance.Imperial = L.Grids.Distance.extend({
             250/3.28, // 16
             100/3.28, // 17
             50/3.28 // 18
-            ],
+        ],
         gridSpacingLabel: [
             "10000 mi", // 0
             "5000 mi", // 1
@@ -1113,9 +1114,8 @@ L.Grids.Distance.Imperial = L.Grids.Distance.extend({
             "250 ft", // 16
             "100 ft ", // 17
             "50 ft", // 18
-             ]
-        }
-
+        ]
+    }
 });
 
 L.grids.distance.imperial = function (options) {
@@ -1143,7 +1143,6 @@ LLtoSM = function (point) { // LatLng -> Spherical Mercator
 metersPerPixel = function (lat,zoom) {
    return EARTH_RADIUS * Math.abs(Math.cos(lat / 180 * Math.PI)) / Math.pow(2, zoom+8);
 };
-
 
 // get the column of a 2d array, from
 // http://stackoverflow.com/questions/7848004/get-column-from-a-two-dimensional-array-in-javascript
