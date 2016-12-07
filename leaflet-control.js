@@ -6,8 +6,9 @@ L.Control.GridScale = L.Control.extend({
 	options: {
 		position: 'bottomleft',
 		gridType: 'distance',
-		metric: true, 
-		imperial: true,
+		metric: true, // for the scale
+		imperial: true, // for the scale
+		showMetric: true, // true for metric, false for imperial
 		updateWhenIdle: false,
 		maxWidth: 100,
 	},
@@ -124,13 +125,13 @@ L.Control.GridScale = L.Control.extend({
 	_gridSpacing: function (options) {
 		var zoom = this._map.getZoom(); 
 		var metricSpacing = [   
-			"250,000 km", // 0 
-            "100,000 km", // 1
-            "50,000 km", // 2
-            "25,000 km", // 3
-            "10,000 km", // 4
-            "5000 km", // 5
-            "2500 km", // 6
+            "25,000 km", // 0 
+            "10,000 km", // 1
+            "5000 km", // 2
+            "2500 km", // 3
+            "1000 km", // 4
+            "500 km", // 5
+            "250 km", // 6
             "100 km", // 7
             "50 km", // 8
             "25 km", // 9
@@ -166,10 +167,10 @@ L.Control.GridScale = L.Control.extend({
             "50 ft", // 18
         ]; 
         if (options.gridType == 'distance'){
-        	if(options.metric){
+        	if(options.showMetric){
         		return metricSpacing[zoom];
         	}
-        	if(options.imperial){
+        	if(!options.showMetric){
         		return imperialSpacing[zoom];
         	}
         }
@@ -179,5 +180,3 @@ L.Control.GridScale = L.Control.extend({
 L.control.gridscale = function (options) {
 	return new L.Control.GridScale(options);
 };
-
-
