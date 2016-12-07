@@ -37,7 +37,7 @@
 	}).addTo(map);
 
 	var options = {
-		gridType: 'distance',
+		gridType: 'other',
 		showMetric: false,
 	};
 	var scale = L.control.gridscale(options); 
@@ -45,9 +45,9 @@
 
 // Distance Grids :
     //L.grids.distance.metric().addTo(map);
-    L.grids.distance.imperial().addTo(map);
+    //L.grids.distance.imperial().addTo(map);
 // LatLng Grids :
-	//L.grids.dms().addTo(map);
+	L.grids.dms().addTo(map);
 	//L.grids.dd().addTo(map);
 // MGRS Grids :
 	//L.grids.mgrs().addTo(map);

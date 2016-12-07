@@ -43,7 +43,7 @@ L.Grids = L.LayerGroup.extend({
         this._latCoords = [],
         this._gridLabels =  [],
         this._mapZoom = this._map.getZoom();
-        this._bounds =  this._map.getBounds();//.pad(0.5);
+        this._bounds =  this._map.getBounds(); //.pad(0.5);
         this._gridSize = this._gridSpacing();
         this.eachLayer(this.removeLayer, this);
         var gridLines = this._gridLines();
@@ -72,9 +72,13 @@ L.Grids = L.LayerGroup.extend({
     },
         
     _gridLines: function () {
+        var zoom = this._mapZoom; 
+        if(zoom <3){
+            return null;
+        }
         var lines = [];
         var labelPt, labelText
-        var labelBounds = this._map.getBounds().pad(-0.025);
+        var labelBounds = this._map.getBounds().pad(-0.03);
         var labelNorth = labelBounds.getNorth();
         var labelWest = labelBounds.getWest();
         var latCoord = this._snap(this._bounds.getSouth());
@@ -88,6 +92,7 @@ L.Grids = L.LayerGroup.extend({
         }
         var lngCoord = this._snap(this._bounds.getWest());
         var eastBound = this._bounds.getEast();
+
         while (lngCoord < eastBound) {
             lines.push(this._verticalLine(lngCoord));
             labelPt = L.latLng(labelNorth, lngCoord) 
@@ -96,7 +101,7 @@ L.Grids = L.LayerGroup.extend({
             lngCoord += this._gridSize;
         }
         return lines;
-                },
+    },
 
     _snap: function (num) {
         return Math.floor(num / this._gridSize) * this._gridSize;
@@ -107,12 +112,22 @@ L.Grids = L.LayerGroup.extend({
     },
 
     _verticalLine: function (lng, options) {
-        var upLimit = options.upLimit ? options.upLimit : this._bounds.getNorth();
-        var downLimit = options.downLimit ? options.downLimit : this._bounds.getSouth();
+        var upLimit, 
+            downLimit, 
+            style; 
+        if (options){
+            upLimit = options.upLimit ? options.upLimit : this._bounds.getNorth();
+            downLimit = options.downLimit ? options.downLimit : this._bounds.getSouth();
+            style = options.style ? options.style : this.options.lineStyle;
+        }else{
+            upLimit = this._bounds.getNorth();
+            downLimit = this._bounds.getSouth();
+            style =  this.options.lineStyle;
+        }
         return L.polyline([
                 [upLimit, lng],
                 [downLimit, lng]
-            ], options.style ? options.style : this.options.lineStyle);
+            ], style);
     },
 
     _horizontalLine: function (lat, options) {
@@ -135,8 +150,6 @@ L.Grids = L.LayerGroup.extend({
 });
 
 L.grids = {};
-
-
 
 /*
   DECIMAL DEGREE GRIDS
@@ -178,8 +191,6 @@ L.Grids.DD = L.Grids.extend({
             return coord.toFixed(2);
         }
     }
-
-
 });
 
 L.grids.dd = function (options) {
