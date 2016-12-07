@@ -2,7 +2,7 @@
  * CREATE A NEW LEAFLET CONTROL FOR THE SCALE (used by distance grids)
  */
 
-L.Control.GridScale = L.Control.extend({
+L.Control.GridScale = L.Control.Scale.extend({
 	options: {
 		position: 'bottomleft',
 		gridType: 'distance',
@@ -12,6 +12,7 @@ L.Control.GridScale = L.Control.extend({
 		updateWhenIdle: false,
 		maxWidth: 100,
 	},
+	
 	onAdd: function (map) {
 		this._map = map;
 
@@ -29,18 +30,6 @@ L.Control.GridScale = L.Control.extend({
 		return mainContainer;
 	},
 
-	onRemove: function (map) {
-		map.off(this.options.updateWhenIdle ? 'moveend' : 'move', this._update, this);
-	},
-
-	_addScales: function (options, className, container) {
-		if (options.metric) {
-			this._mScale = L.DomUtil.create('div', className + '-line', container);
-		}
-		if (options.imperial) {
-			this._iScale = L.DomUtil.create('div', className + '-line', container);
-		}
-	},
 	_addDistanceLabel: function(options, container){
 		if (options.gridType == 'distance') {
 			this._distLabel = L.DomUtil.create('div', '', container);
@@ -67,60 +56,10 @@ L.Control.GridScale = L.Control.extend({
 		this._updateScales(options, maxMeters);
 	},
 
-	_updateScales: function (options, maxMeters) {
-		if (options.metric && maxMeters) {
-			this._updateMetric(maxMeters);
-		}
-
-		if (options.imperial && maxMeters) {
-			this._updateImperial(maxMeters);
-		}
-	},
-
 	_updateDistance: function (gridSize) {	
 
 		this._distLabel.innerHTML = 'Grid : ' + gridSize;
 	},
-
-	_updateMetric: function (maxMeters) {
-		var meters = this._getRoundNum(maxMeters);
-
-		this._mScale.style.width = this._getScaleWidth(meters / maxMeters) + 'px';
-		this._mScale.innerHTML = meters < 1000 ? meters + ' m' : (meters / 1000) + ' km';
-	},
-
-	_updateImperial: function (maxMeters) {
-		var maxFeet = maxMeters * 3.2808399,
-		    scale = this._iScale,
-		    maxMiles, miles, feet;
-
-		if (maxFeet > 5280) {
-			maxMiles = maxFeet / 5280;
-			miles = this._getRoundNum(maxMiles);
-
-			scale.style.width = this._getScaleWidth(miles / maxMiles) + 'px';
-			scale.innerHTML = miles + ' mi';
-
-		} else {
-			feet = this._getRoundNum(maxFeet);
-
-			scale.style.width = this._getScaleWidth(feet / maxFeet) + 'px';
-			scale.innerHTML = feet + ' ft';
-		}
-	},
-
-	_getScaleWidth: function (ratio) {
-		return Math.round(this.options.maxWidth * ratio) - 10;
-	},
-
-	_getRoundNum: function (num) {
-		var pow10 = Math.pow(10, (Math.floor(num) + '').length - 1),
-		    d = num / pow10;
-
-		d = d >= 10 ? 10 : d >= 5 ? 5 : d >= 3 ? 3 : d >= 2 ? 2 : 1;
-
-		return pow10 * d;
-	}, 
 
 	_gridSpacing: function (options) {
 		var zoom = this._map.getZoom(); 
