@@ -18,23 +18,27 @@
 	<div id="map"></div>
 	<script src="https://npmcdn.com/leaflet@0.7.7/dist/leaflet.js"></script>
 	<script src="./leaflet-grids.js"></script>
+	<script src="./leaflet-control.js"></script>
 	<script src="./mgrs.js"></script>
 
 	<script type="text/javascript">
 	// Lat 48-50 
 	// Long 126-120
-	var map = L.map('map');
-	map.fitBounds([
-    	[-60, 0],
-    	[60, -40]
-		]); 
+	var map = L.map('map', {
+    	center: [51.505, -0.09],
+    	zoom: 13
+	});
+	// map.fitBounds([
+ //    	[-60, 0],
+ //    	[60, -40]
+	// 	]); 
 	L.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
 		attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
 	}).addTo(map);
 
-	//var scale = L.control.scale(); 
+	//var scale = L.control.gridscale(); 
 	//scale.addTo(map);
-	//console.log(scale.getContainer());
+
 // Distance Grids :
     L.grids.distance.metric().addTo(map);
     //L.grids.distance.imperial().addTo(map);

@@ -1062,7 +1062,6 @@ L.Grids.Distance.Metric = L.Grids.Distance.extend({
             "50 m", // 17
             "25 m", // 18
              ]
-
         },
 });
 
