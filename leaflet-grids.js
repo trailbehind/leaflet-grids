@@ -441,7 +441,8 @@ L.Grids.Mercator = L.Grids.extend({
         var vertLines = [];
         var drawnFlag = false;
 
-        // Empty the labels list for the MGRS grid 
+        // Empty the labels list for the MGRS grid
+        // Keep them around for UTM to better see the zoneNumber
         if(this.options.mgrs){
             this._gridLabels = [];
         }
@@ -457,6 +458,8 @@ L.Grids.Mercator = L.Grids.extend({
             var center = mgrs.LLtoUTM({lon:centerLL.lng, lat:centerLL.lat});
             var southEast = mgrs.LLtoUTM({lon:southEastLL.lng, lat:southEastLL.lat});
             var northWest = mgrs.LLtoUTM({lon:northWestLL.lng, lat:northWestLL.lat});
+
+            var buffer;
 
             // draw "horizontal" lines + labels horizontal positionning
             var latCoord = this._snap(southEast.northing);
@@ -510,14 +513,16 @@ L.Grids.Mercator = L.Grids.extend({
                     zoneNumber:center.zoneNumber
                 };
                 var topPointLL = mgrs.UTMtoLL(topPointUTM);
+                // For the mgrs labelling
                 topPointUTM.easting += gridSize/2;
                 topPointLabel = mgrs.UTMtoLL(topPointUTM);
 
                 lines.push(this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
                 vertLines.push(this._cleanVert(L.polyline([bottomPointLabel,topPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
 
-                // As the vertical lines are "cleaned" -> we need to put labels accordingly
-                if(this.options.utm && topPointLL.lon > zoneBreaks[i] && topPointLL.lon < zoneBreaks[i+1]){
+                // As the vertical lines are "cleaned" -> we need to put the labels accordingly (+ buffer around zoneBreaks vertical lines) 
+                buffer = Math.abs(topPointLL.lon - topPointLabel.lon);
+                if(this.options.utm && topPointLL.lon > (zoneBreaks[i] + buffer) && topPointLL.lon < (zoneBreaks[i+1] - buffer)){
                     labelLongUTM.push([topPointLL.lon,lonCoord]);
                 }
 
@@ -636,87 +641,6 @@ L.Grids.Mercator = L.Grids.extend({
             return false; // segments do not intersect
         }
     },
-
-
-    _lineTrim: function(line, left, right) {
-        try{
-            var newPt;
-            var done = false;
-            var leftBound = L.polyline([L.latLng(-90, left), L.latLng(90, left)]);
-            var rightBound = L.polyline([L.latLng(-90, right), L.latLng(90, right)]);
-            trimmed = [];
-            for (var k = 0; k < line.length - 1; k++) {
-                var l = line[k];
-                var r = line[k+1];
-                if (l.lon > left && r.lon < right) {
-                    //segment doesn't need trimming
-                    trimmed.push(l);
-                    continue;
-                }
-                var segment = L.polyline([l,r]);
-                if (l.lon < left && r.lon > left) {
-                   if ( left % 6 == 0 ) {
-                       newPt = this._line_intersect(segment, leftBound);
-                       trimmed.push(newPt);
-                       continue;
-                   } else {
-                       // off screen, don't bother trimming
-                       trimmed.push(l);
-                       continue;
-                   }
-                }
-                if (l.lon < right && r.lon > right) {
-                   if ( right % 6 == 0 ) {
-                       newPt = this._line_intersect(segment, rightBound);
-                       trimmed.push(l)
-                       trimmed.push(newPt);
-                       done = true;
-                       break;
-                   } else {
-                       // off screen, don't bother trimming
-                       trimmed.push(l)
-                       trimmed.push(r)
-                       continue;
-                   }
-                }
-                // edge case for vertical lines that lean left
-                if (r.lon < left && l.lon > left) {
-                   if ( left % 6 == 0 ) {
-                       newPt = this._line_intersect(segment, leftBound);
-                       console.log("trim");
-                       trimmed.push(l)
-                       trimmed.push(newPt);
-                       done = true;
-                       break;
-                   } else {
-                       // off screen, don't bother trimming
-                       trimmed.push(l);
-                       trimmed.push(r);
-                       console.log(r);
-                       continue;
-                   }
-                }
-                // don't need to test for segments outside the boundaries
-            }
-            // draw the last point if the line isn't trimmed 
-            if ( !done ) {
-                if (r.lon > left) {
-                    trimmed.push(r);
-                }else{
-                    newPt = this._line_intersect(segment, leftBound);
-                    trimmed.push(newPt);
-                }
-            }
-            return trimmed;
-        }
-    catch(err){
-        console.log("TRIM ERROR");
-        console.log (err);
-        console.log(line, left, right);
-        console.log(leftBound, rightBound);
-        return line;
-    }
-    }
 });
 
 /*
