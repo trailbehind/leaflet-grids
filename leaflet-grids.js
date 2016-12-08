@@ -516,9 +516,9 @@ L.Grids.Mercator = L.Grids.extend({
                 lines.push(this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
                 vertLines.push(this._cleanVert(L.polyline([bottomPointLabel,topPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
 
-                if(this.options.utm && i == 1){
+                if(this.options.utm){
+                    // TO DO : It seems to be an offset somwhere here..
                     console.log(lonCoord);
-                    //lines.push(this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
                     labelLongUTM.push([topPointLL.lon,lonCoord]);
                 }
 
