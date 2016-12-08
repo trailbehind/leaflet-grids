@@ -27,7 +27,6 @@ L.Grids = L.LayerGroup.extend({
         L.Util.setOptions(this, options);
     },
 
-
     onAdd: function (map) {
         this._map = map;
         var grid = this.redraw();
@@ -56,8 +55,8 @@ L.Grids = L.LayerGroup.extend({
                 console.log("*******");
                 console.log(gridLines[i]);
             }
-                    }
- //       var labels = this._gridLabels();
+        }
+
         for (i in this._gridLabels) {
             this.addLayer(this._gridLabels[i]);
         }
@@ -135,6 +134,7 @@ L.Grids = L.LayerGroup.extend({
                 [lat, this._bounds.getEast()]
             ], options ? options : this.options.lineStyle);
     },
+
     _label: function (latLng, labelText, cssClass) {
         return L.marker(latLng, {
                 icon: L.divIcon({
@@ -144,7 +144,6 @@ L.Grids = L.LayerGroup.extend({
                 })
         });
     }
-
 });
 
 L.grids = {};
@@ -176,6 +175,7 @@ L.Grids.DD = L.Grids.extend({
             0.01, // 18
         ],
     },
+
     _labelFormat: function (coord, dir) {
         var zoom = this._map.getZoom();
 
@@ -224,37 +224,37 @@ L.Grids.DMS = L.Grids.extend({
             (1.0 / 240.0), // 18
         ],
     },
-        _labelFormat: function (coord, dir) {
-            var dirLabel = "";
-            if ( dir == "lat" ) {
-                if ( coord > 0 ) {
-                    dirLabel = "N";
-                } else if ( coord < 0 ) {
-                    dirLabel = "S";
-                }
-            }
-            if ( dir == "lng" ) {
-                if ( coord > 0 ) {
-                    dirLabel = "E";
-                } else if ( coord < 0 ) {
-                    dirLabel = "W";
-                }
-            }
 
-            var deg = Math.floor(coord);
-            var min = Math.floor(( coord - deg ) * 60);
-            var sec = Math.floor((coord - deg - (min/60)) * 3600);
-            var label = Math.abs(deg) + "&deg;"
-            var zoom = map.getZoom();
-            if ( zoom > 8) {
-                label += " " + min + "'";
+    _labelFormat: function (coord, dir) {
+        var dirLabel = "";
+        if ( dir == "lat" ) {
+            if ( coord > 0 ) {
+                dirLabel = "N";
+            } else if ( coord < 0 ) {
+                dirLabel = "S";
             }
-            if ( zoom > 14 ) {
-                label += " " + sec + '"';
+        }
+        if ( dir == "lng" ) {
+            if ( coord > 0 ) {
+                dirLabel = "E";
+            } else if ( coord < 0 ) {
+                dirLabel = "W";
             }
-            return label + " " + dirLabel;
         }
 
+        var deg = Math.floor(coord);
+        var min = Math.floor(( coord - deg ) * 60);
+        var sec = Math.floor((coord - deg - (min/60)) * 3600);
+        var label = Math.abs(deg) + "&deg;"
+        var zoom = map.getZoom();
+        if ( zoom > 8) {
+            label += " " + min + "'";
+        }
+        if ( zoom > 14 ) {
+            label += " " + sec + '"';
+        }
+        return label + " " + dirLabel;
+    }
 });
 
 L.grids.dms = function (options) {
@@ -493,6 +493,7 @@ L.Grids.Mercator = L.Grids.extend({
 
                 latCoord += gridSize;
             }
+
             // draw "vertical" lines + labels vertical positionning
             var lonCoord = this._snap(northWest.easting - gridSize);
             while (lonCoord < southEast.easting){
@@ -700,7 +701,7 @@ L.grids.mgrs = function (options) {
 
 
 /*
-  DISTANCE GRIDS
+  DISTANCE GRIDS BASE CLASS
  */
 
 L.Grids.Distance = L.Grids.extend({
@@ -775,6 +776,10 @@ L.Grids.Distance = L.Grids.extend({
 
 L.grids.distance = {};
 
+/*
+  METRIC DISTANCE GRIDS
+ */
+
 L.Grids.Distance.Metric = L.Grids.Distance.extend({
     options: {
         coordinateGridSpacing: [
@@ -826,6 +831,9 @@ L.grids.distance.metric = function (options) {
     return new L.Grids.Distance.Metric(options);
 };
 
+/*
+  IMPERIAL DISTANCE GRIDS
+ */
 
 L.Grids.Distance.Imperial = L.Grids.Distance.extend({
     options: {
