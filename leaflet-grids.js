@@ -516,9 +516,8 @@ L.Grids.Mercator = L.Grids.extend({
                 lines.push(this._cleanVert(L.polyline([bottomPointLL,topPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
                 vertLines.push(this._cleanVert(L.polyline([bottomPointLabel,topPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
 
-                if(this.options.utm){
-                    // TO DO : It seems to be an offset somwhere here..
-                    console.log(lonCoord);
+                // As the vertical lines are "cleaned" -> we need to put labels accordingly
+                if(this.options.utm && topPointLL.lon > zoneBreaks[i] && topPointLL.lon < zoneBreaks[i+1]){
                     labelLongUTM.push([topPointLL.lon,lonCoord]);
                 }
 
