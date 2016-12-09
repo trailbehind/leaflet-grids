@@ -273,10 +273,10 @@ L.Grids.Mercator = L.Grids.extend({
         if ( this._mapZoom < 10 ) {
             return 100000;
         };
-        if ( this._mapZoom < 15 ) {
+        if ( this._mapZoom < 14 ) {
             return 10000;
         };
-        if ( this._mapZoom < 18 ) {
+        if ( this._mapZoom < 17 ) {
             return 1000;
         };
         if ( this._mapZoom <= 20 ) {
@@ -687,10 +687,10 @@ L.Grids.MGRS = L.Grids.Mercator.extend({
         if ( this._mapZoom < 10 ) {
             return 0;
         };
-        if ( this._mapZoom < 15 ) {
+        if ( this._mapZoom < 14 ) {
             return 1;
         };
-        if ( this._mapZoom < 18 )  {
+        if ( this._mapZoom < 17 )  {
             return 2;
         };
         if ( this._mapZoom <= 20 )  {
