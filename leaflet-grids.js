@@ -70,10 +70,6 @@ L.Grids = L.LayerGroup.extend({
     },
         
     _gridLines: function () {
-        var zoom = this._mapZoom; 
-        if(zoom <3){
-            return null;
-        }
         var lines = [];
         var labelPt, labelText
         var labelBounds = this._map.getBounds().pad(-0.03);
