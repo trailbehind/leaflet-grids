@@ -25,8 +25,8 @@
     <script type="text/javascript">
 
     var map = L.map('map', {
-        center: [50, 4.5],
-        zoom: 10
+        center: [51.36, 3.54],
+        zoom: 15
     });
  
     L.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
@@ -50,14 +50,14 @@
 /*
 * LatLng Grids
 */
-    //L.grids.dms().addTo(map);
+    L.grids.dms().addTo(map);
     //L.grids.dd().addTo(map);
 
 /*
 * UTM Grids (MGRS and UTM labelling system)
 */
     //L.grids.mgrs().addTo(map);
-    L.grids.utm().addTo(map);
+    //L.grids.utm().addTo(map);
 
     </script>
 </body>

@@ -89,7 +89,8 @@ L.Grids = L.LayerGroup.extend({
 
         while (lngCoord < eastBound) {
             lines.push(this._verticalLine(lngCoord));
-            labelPt = L.latLng(labelNorth, lngCoord) 
+            labelPt = L.latLng(labelNorth, lngCoord);
+            console.log(lngCoord);
             labelText = this._labelFormat(lngCoord, 'lng');
             this._gridLabels.push(this._label(labelPt, labelText, 'lng'));
             lngCoord += this._gridSize;
@@ -240,7 +241,7 @@ L.Grids.DMS = L.Grids.extend({
 
         var deg = Math.floor(coord);
         var min = Math.floor(( coord - deg ) * 60);
-        var sec = Math.floor((coord - deg - (min/60)) * 3600);
+        var sec = Math.round((coord - deg - (min/60)) * 3600);
         var label = Math.abs(deg) + "&deg;"
         var zoom = map.getZoom();
         if ( zoom > 8) {
