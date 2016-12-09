@@ -725,7 +725,6 @@ L.Grids.Distance = L.Grids.extend({
         var metersAtLat = metersPerPixel(this._map.getCenter().lat, zoom);
         var gridSize = this._gridSize * metersAtEquator / metersAtLat;
 
-        console.log(this.gridLabel);
         var latCoord = LLtoSM(this._map.getCenter()).y;
         var latCoordUp = latCoord;
         var latCoordDown = latCoord;
