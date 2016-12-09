@@ -480,8 +480,8 @@ L.Grids.Mercator = L.Grids.extend({
                 rightPointUTM.northing += gridSize/2; 
                 var rightPointLabel = mgrs.UTMtoLL(rightPointUTM);
  
-                lines.push(this._cleanHorz(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
-                horzLines.push(this._cleanHorz(L.polyline([leftPointLabel,rightPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
+                lines.push(this._cleanLine(L.polyline([leftPointLL,rightPointLL], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
+                horzLines.push(this._cleanLine(L.polyline([leftPointLabel,rightPointLabel], this.options.lineStyle), zoneBreaks[i], zoneBreaks[i+1]));
 
                 if (this.options.utm && i == 0){ // avoiding duplicate latitudes (because of zoneBreaks)
                     labelLatUTM.push([leftPointLL.lat,latCoord]); // Latitudes for utm labels
@@ -546,7 +546,7 @@ L.Grids.Mercator = L.Grids.extend({
         if(this.options.mgrs){
             for (x in horzLines){
                 for (y in vertLines){
-                    labelPt = this._line_intersect(horzLines[x], vertLines[y]);
+                    labelPt = this._lineIntersect(horzLines[x], vertLines[y]);
                     if(this._bounds.contains(labelPt)){
                         gridLabel = mgrs.LLtoMGRS([labelPt.lng, labelPt.lat], this._MGRSAccuracy());
                         this._gridLabels.push(this._label(labelPt, gridLabel));
@@ -558,47 +558,56 @@ L.Grids.Mercator = L.Grids.extend({
         return lines;
     },
 
-    _cleanHorz: function (line, leftLng, rightLng) {
-       var pts = line.getLatLngs(); 
-       var options = line.options;
-       var cleanLine;
-       var pt1 = pts[0];
-       var pt2 = pts[pts.length-1];
-       var slope = (pt1.lat-pt2.lat)/(pt1.lng-pt2.lng);
-       // Right side
-       var newRightLat = pt1.lat - (slope * (leftLng - pt2.lng));
-       var newPt2 = L.latLng(newRightLat,rightLng);
-       // Left side
-       var newLeftLat = pt2.lat + (slope * (pt1.lng - rightLng));
-       var newPt1 = L.latLng(newLeftLat,leftLng);
+    /* This function takes an "horizontal" line and 2 bounds (left and right)
+     * It returns a new line with the same slope but bounded
+     * A line is defined by y = slope * x + b
+     */
+    _cleanLine: function(line, leftLng, rightLng) {
+    	// Get the line equation
+    	var pts = line.getLatLngs(),
+    		options = line.options,
+    		pt1 = pts[0],
+    		pt2 = pts[pts.length-1],
+    		slope = (pt1.lat-pt2.lat)/(pt1.lng-pt2.lng),
+    		b = pt1.lat - slope*pt1.lng;
 
-       var cleanLine = L.polyline([newPt1, newPt2], options);
+    		var newLeftLat = slope*leftLng + b, 
+    		newPt1 = L.latLng(newLeftLat, leftLng);
 
-       return cleanLine;
+    		var newRightLat = slope*rightLng + b,
+    		newPt2 = L.latLng(newRightLat, rightLng);
+
+    	var newLine = L.polyline([newPt1, newPt2], options);
+		return newLine;
     },
 
+    /* This function takes a "vertical" line and 2 bounds (left and right)
+     * It returns a new line with the same slope but bounded
+     * A line is defined by y = slope * x + b
+     * The only difference here is testing first to see if bounds cut the line
+     */
     _cleanVert: function (line, leftLng, rightLng) {
-       var pts = line.getLatLngs(); 
-       var options = line.options;
-       var pt1 = pts[0];
-       var pt2 = pts[pts.length-1];
-       var slope = (pt1.lat-pt2.lat)/(pt1.lng-pt2.lng);
-       if ( pt2.lng > rightLng) {
+       var pts = line.getLatLngs(), 
+	       options = line.options,
+	       pt1 = pts[0],
+	       pt2 = pts[pts.length-1],
+	       slope = (pt1.lat-pt2.lat)/(pt1.lng-pt2.lng);
+
+       if (pt2.lng > rightLng) {
            var newLat = pt1.lat + (slope * (rightLng - pt1.lng));
            pt2 = L.latLng(newLat,rightLng);
        } 
-       if ( pt2.lng < leftLng) {
+       if (pt2.lng < leftLng) {
            var newLat = pt1.lat + (slope * (leftLng - pt1.lng));
            pt2 = L.latLng(newLat,leftLng);
        } 
        return L.polyline([pt1, pt2], options);
     },
 
-    /* find the intersection of two lines
+    /* Find the intersection point of two lines
      * based on line equations
      */    
-
-    _line_intersect: function(line1, line2) {
+    _lineIntersect: function(line1, line2) {
         // Get the first and last point of the two given segments
         var line1Pts = line1.getLatLngs();
         var line2Pts = line2.getLatLngs();
