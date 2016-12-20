@@ -5,7 +5,8 @@
 
 L.Grids = L.LayerGroup.extend({
     options: {
-        redraw: 'move',
+        redraw: 'move', // or moveend depending when the grids is refreshed
+        groups: [],
         lineStyle: {
             stroke: true,
             color: '#111',
@@ -30,10 +31,19 @@ L.Grids = L.LayerGroup.extend({
     onAdd: function (map) {
         this._map = map;
         var grid = this.redraw();
+
+        // Create a listener to redraw the map when it's moving
         this._map.on('viewreset ' + this.options.redraw, function () {
             grid.redraw();
         });
-        this.eachLayer(map.addLayer, this);
+    },
+
+    onRemove: function(map) {
+        this._map = map;
+
+        // Remove listener and grids
+        this._map.off('viewreset ' + this.options.redraw);
+        this.eachLayer(this.removeLayer, this);
     },
 
     redraw: function () {
@@ -43,11 +53,13 @@ L.Grids = L.LayerGroup.extend({
         this._mapZoom = this._map.getZoom();
         this._bounds =  this._map.getBounds(); //.pad(0.5);
         this._gridSize = this._gridSpacing();
-        this.eachLayer(this.removeLayer, this);
+
         var gridLines = this._gridLines();
+        var gridGroup = L.layerGroup(); 
+
         for (i in gridLines){
             try {
-            this.addLayer(gridLines[i]);
+                gridGroup.addLayer(gridLines[i]);
             }
             catch (err)
             {
@@ -58,8 +70,12 @@ L.Grids = L.LayerGroup.extend({
         }
 
         for (i in this._gridLabels) {
-            this.addLayer(this._gridLabels[i]);
+            gridGroup.addLayer(this._gridLabels[i]);
         }
+        // First, remove old layer before drawing the new one
+        this.eachLayer(this.removeLayer, this); 
+        // Second, add the new grid
+        gridGroup.addTo(this);
         return this;
     },
     
@@ -90,7 +106,6 @@ L.Grids = L.LayerGroup.extend({
         while (lngCoord < eastBound) {
             lines.push(this._verticalLine(lngCoord));
             labelPt = L.latLng(labelNorth, lngCoord);
-            console.log(lngCoord);
             labelText = this._labelFormat(lngCoord, 'lng');
             this._gridLabels.push(this._label(labelPt, labelText, 'lng'));
             lngCoord += this._gridSize;
@@ -135,7 +150,6 @@ L.Grids = L.LayerGroup.extend({
     _label: function (latLng, labelText, cssClass) {
         return L.marker(latLng, {
                 icon: L.divIcon({
-                    iconSize: [100, 20],
                     className: 'leaflet-grids-label',
                     html: '<div class="grid-label ' + cssClass + '">' + labelText+ '</div>'
                 })
@@ -243,14 +257,26 @@ L.Grids.DMS = L.Grids.extend({
         var min = Math.floor(( coord - deg ) * 60);
         var sec = Math.round((coord - deg - (min/60)) * 3600);
         var label = Math.abs(deg) + "&deg;"
-        var zoom = map.getZoom();
+        var zoom = this._map.getZoom();
         if ( zoom > 8) {
-            label += " " + min + "'";
+            label += " " + min.toString() + "'";
         }
         if ( zoom > 14 ) {
-            label += " " + sec + '"';
+            label += " " + sec.toString() + '"';
         }
         return label + " " + dirLabel;
+    },
+
+    _label: function (latLng, labelText, cssClass) {
+        var offset = 0;
+        return L.marker(latLng, {
+                icon: L.divIcon({
+                    iconSize: [100, 20], // To keep the label on 1 line 
+                    iconAnchor: [offset,offset], // Position the "tip" of the icon
+                    className: 'leaflet-grids-label',
+                    html: '<div class="grid-label ' + cssClass + '">' + labelText+ '</div>'
+                })
+        });
     }
 });
 
@@ -412,7 +438,7 @@ L.Grids.Mercator = L.Grids.extend({
             }
         }
 
-        var mapBounds = map.getBounds(); // show just the zone boundaries if zoomed out too far
+        var mapBounds = this._map.getBounds(); // show just the zone boundaries if zoomed out too far
         if ( Math.abs(mapBounds.getWest() - mapBounds.getEast()) > 8 ) {
             if (this.options.mgrs){
                 for(var u=0;u<longMGRS.length-1;u++){

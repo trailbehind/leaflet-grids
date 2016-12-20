@@ -34,10 +34,10 @@
     }).addTo(map);
 
     // if gridType is 'metric' or 'imperial', scale shows also the gridSize 
-    // otherwise, nornal scale it is
+    // otherwise, normal scale is displayed
     var options = {
-        gridType: 'other',
-        showMetric: true,
+        gridType: 'distance',
+        showMetric: false,
     };
     var scale = L.control.gridscale(options); 
     scale.addTo(map);
@@ -45,7 +45,7 @@
 * Distance Grids
 */
     //L.grids.distance.metric().addTo(map);
-    //L.grids.distance.imperial().addTo(map);
+    L.grids.distance.imperial().addTo(map);
 
 /*
 * LatLng Grids
@@ -56,7 +56,7 @@
 /*
 * UTM Grids (MGRS and UTM labelling system)
 */
-    L.grids.mgrs().addTo(map);
+    //L.grids.mgrs().addTo(map);
     //L.grids.utm().addTo(map);
 
     </script>

@@ -4,12 +4,10 @@
 
 L.Control.GridScale = L.Control.Scale.extend({
 	options: {
-		position: 'bottomleft',
-		gridType: 'distance',
-		metric: true, // for the scale
-		imperial: true, // for the scale
+		position: 'bottomright',
+		gridType: 'none',
 		showMetric: true, // true for metric, false for imperial
-		updateWhenIdle: false,
+		updateWhenIdle: true,
 		maxWidth: 100,
 	},
 	
@@ -31,9 +29,7 @@ L.Control.GridScale = L.Control.Scale.extend({
 	},
 
 	_addDistanceLabel: function(options, container){
-		if (options.gridType == 'distance') {
-			this._distLabel = L.DomUtil.create('div', '', container);
-		}
+		this._distLabel = L.DomUtil.create('div', '', container);
 	},
 
 	_update: function () {
@@ -49,16 +45,17 @@ L.Control.GridScale = L.Control.Scale.extend({
 			maxMeters = dist * (options.maxWidth / size.x);
 		}
 
-		if (gridSize) {
-			this._updateDistance(gridSize);
-		}
+		this._updateDistance(gridSize);
 
 		this._updateScales(options, maxMeters);
 	},
 
 	_updateDistance: function (gridSize) {	
-
-		this._distLabel.innerHTML = 'Grid : ' + gridSize;
+		if(gridSize){
+			this._distLabel.innerHTML = 'Grid : ' + gridSize;
+		}else{
+			this._distLabel.innerHTML = '';
+		}
 	},
 
 	_gridSpacing: function (options) {
