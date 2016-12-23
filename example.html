@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Leaflet Grid Demo</title>
+    <link rel="stylesheet" href="https://npmcdn.com/leaflet@0.7.7/dist/leaflet.css" />
+    <style type="text/css">
+        html, body { width: 100%; height: 100%; margin: 0; }
+        #map { width: 100%; height: 100%; }
+        .grid-label { text-align:center;
+                        text-shadow: 2px 2px 5px #fff, -2px -2px 5px #fff;
+                    }
+        .vertical { transform: rotate(-90deg);           
+                }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <script src="https://npmcdn.com/leaflet@0.7.7/dist/leaflet.js"></script>
+    <script src="./leaflet-grids.js"></script>
+    <script src="./leaflet-control.js"></script>
+    <script src="./mgrs.js"></script>
+
+    <script type="text/javascript">
+
+    var map = L.map('map', {
+        center: [51, 3],
+        zoom: 16
+    });
+ 
+    L.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // if gridType is 'metric' or 'imperial', scale shows also the gridSize 
+    // otherwise, normal scale is displayed
+    var options = {
+        gridType: 'distance',
+        showMetric: false,
+    };
+    var scale = L.control.gridscale(options); 
+    scale.addTo(map);
+/*
+* Distance Grids
+*/
+    //L.grids.distance.metric().addTo(map);
+    L.grids.distance.imperial().addTo(map);
+
+/*
+* LatLng Grids
+*/
+    //L.grids.dms().addTo(map);
+    //L.grids.dd().addTo(map);
+
+/*
+* UTM Grids (MGRS and UTM labelling system)
+*/
+    //L.grids.mgrs().addTo(map);
+    //L.grids.utm().addTo(map);
+
+    </script>
+</body>
+</html>
