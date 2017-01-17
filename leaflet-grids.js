@@ -253,10 +253,23 @@ L.Grids.DMS = L.Grids.extend({
             }
         }
 
-        var deg = Math.floor(coord);
-        var min = Math.floor(( coord - deg ) * 60);
-        var sec = Math.round((coord - deg - (min/60)) * 3600);
-        var label = Math.abs(deg) + "&deg;"
+        var val = Math.abs(coord); //Doesn't matter if it's N, S, W, E
+
+        var deg = Math.floor(val); 
+        var min = Math.floor(( val - deg ) * 60);
+        var sec = Math.round(( val - deg - (min/60)) * 3600);
+
+        if (sec == 60) {
+            min += 1; 
+            sec =0;
+        }
+
+        if (min == 60) {
+            deg += 1;
+            min = 0;
+        }
+
+        var label = deg + "&deg;"
         var zoom = this._map.getZoom();
         if ( zoom > 8) {
             label += " " + min.toString() + "'";
