@@ -590,7 +590,7 @@ L.Grids.Mercator = L.Grids.extend({
             for (x in horzLines){
                 for (y in vertLines){
                     labelPt = this._lineIntersect(horzLines[x], vertLines[y]);
-                    if(this._bounds.contains(labelPt)){
+                    if(labelPt && this._bounds.contains(labelPt)){
                         gridLabel = mgrs.forward([labelPt.lng, labelPt.lat], this._MGRSAccuracy());
                         this._gridLabels.push(this._label(labelPt, gridLabel));
                     }        
@@ -939,13 +939,13 @@ L.grids.distance.imperial = function (options) {
 var EARTH_RADIUS = 6371000;
 
 SMtoLL = function (point) { // Spherical Mercator -> LatLng
-    projectionPoint = L.point(point).divideBy(EARTH_RADIUS);
+    projectionPoint = L.point(point);
     return L.Projection.SphericalMercator.unproject(projectionPoint);
 
 };
 
 LLtoSM = function (point) { // LatLng -> Spherical Mercator 
-    return L.Projection.SphericalMercator.project(point).multiplyBy(EARTH_RADIUS);
+    return L.Projection.SphericalMercator.project(point);
 
 };
 
