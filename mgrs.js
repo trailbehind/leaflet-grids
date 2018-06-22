@@ -1,6 +1,8 @@
-!function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var f;"undefined"!=typeof window?f=window:"undefined"!=typeof global?f=global:"undefined"!=typeof self&&(f=self),f.mgrs=e()}}(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(_dereq_,module,exports){
-
-
+(function (global, factory) {
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
+	typeof define === 'function' && define.amd ? define(['exports'], factory) :
+	(factory((global.mgrs = global.mgrs || {})));
+}(this, (function (exports) { 'use strict';
 
 /**
  * UTM zones are grouped, and assigned to one of a group of 6
@@ -31,22 +33,35 @@ var I = 73; // I
 var O = 79; // O
 var V = 86; // V
 var Z = 90; // Z
-
+var mgrs = {
+  forward: forward,
+  inverse: inverse,
+  toPoint: toPoint,
+  LLtoUTM: LLtoUTM,
+  UTMtoLL: UTMtoLL
+};
 /**
  * Conversion of lat/lon to MGRS.
  *
  * @param {object} ll Object literal with lat and lon properties on a
  *     WGS84 ellipsoid.
  * @param {int} accuracy Accuracy in digits (5 for 1 m, 4 for 10 m, 3 for
- *      100 m, 4 for 1000 m or 5 for 10000 m). Optional, default is 5.
+ *      100 m, 2 for 1000 m or 1 for 10000 m). Optional, default is 5.
  * @return {string} the MGRS string for the given location and accuracy.
  */
-exports.LLtoMGRS = function(ll, accuracy) {
-  return encode(exports.LLtoUTM({
+function forward(ll, accuracy) {
+  if (accuracy == null || accuracy === undefined) {
+    accuracy = 5;
+  }
+  var ret = encode(LLtoUTM({
     lat: ll[1],
     lon: ll[0]
   }), accuracy);
-};
+  if (accuracy == 0) {
+    ret = ret.substring(0, 5);
+  }
+  return ret;
+}
 
 /**
  * Conversion of MGRS to lat/lon.
@@ -56,21 +71,21 @@ exports.LLtoMGRS = function(ll, accuracy) {
  *     (longitude) and top (latitude) values in WGS84, representing the
  *     bounding box for the provided MGRS reference.
  */
-exports.MGRStoLLBBox = function(mgrs) {
-  var bbox = exports.UTMtoLL(decode(mgrs.toUpperCase()));
+function inverse(mgrs) {
+  var bbox = UTMtoLL(decode(mgrs.toUpperCase()));
   if (bbox.lat && bbox.lon) {
     return [bbox.lon, bbox.lat, bbox.lon, bbox.lat];
   }
   return [bbox.left, bbox.bottom, bbox.right, bbox.top];
-};
+}
 
-exports.MGRStoLLPoint = function(mgrs) {
-  var bbox = exports.UTMtoLL(decode(mgrs.toUpperCase()));
+function toPoint(mgrs) {
+  var bbox = UTMtoLL(decode(mgrs.toUpperCase()));
   if (bbox.lat && bbox.lon) {
     return [bbox.lon, bbox.lat];
   }
   return [(bbox.left + bbox.right) / 2, (bbox.top + bbox.bottom) / 2];
-};
+}
 /**
  * Conversion from degrees to radians.
  *
@@ -97,13 +112,14 @@ function radToDeg(rad) {
  * Converts a set of Longitude and Latitude co-ordinates to UTM
  * using the WGS84 ellipsoid.
  *
+ * @private
  * @param {object} ll Object literal with lat and lon properties
  *     representing the WGS84 coordinate to be converted.
  * @return {object} Object literal containing the UTM value with easting,
  *     northing, zoneNumber and zoneLetter properties, and an optional
  *     accuracy property in digits. Returns null if the conversion failed.
  */
-exports.LLtoUTM = function (ll) {
+function LLtoUTM(ll) {
   var Lat = ll.lat;
   var Long = ll.lon;
   var a = 6378137.0; //ellip.radius;
@@ -118,26 +134,15 @@ exports.LLtoUTM = function (ll) {
   var ZoneNumber;
   // (int)
   ZoneNumber = Math.floor((Long + 180) / 6) + 1;
-  //Make sure the zone number is comprised bwt 0 and 60
-  if (ZoneNumber<0) {
-    ZoneNumber += (60+1);
-  }
-  if (ZoneNumber>60) {
-    ZoneNumber -= 60;
-  }
+
   //Make sure the longitude 180.00 is in Zone 60
   if (Long === 180) {
     ZoneNumber = 60;
   }
 
   // Special zone for Norway
-  // Between lat 56 and 64 : zone 32 has been widened to 9deg 
-  // and zone 31 has been narrowed to 3deg
   if (Lat >= 56.0 && Lat < 64.0 && Long >= 3.0 && Long < 12.0) {
     ZoneNumber = 32;
-  }
-  if (Lat >= 56.0 && Lat < 64.0 && Long >= 0.0 && Long < 3.0) {
-    ZoneNumber = 31;
   }
 
   // Special zones for Svalbard
@@ -179,8 +184,8 @@ exports.LLtoUTM = function (ll) {
   }
 
   return {
-    northing: Math.round(UTMNorthing),
-    easting: Math.round(UTMEasting),
+    northing: Math.trunc(UTMNorthing),
+    easting: Math.trunc(UTMEasting),
     zoneNumber: ZoneNumber,
     zoneLetter: getLetterDesignator(Lat)
   };
@@ -201,7 +206,7 @@ exports.LLtoUTM = function (ll) {
  *     for the bounding box calculated according to the provided accuracy.
  *     Returns null if the conversion failed.
  */
-exports.UTMtoLL = function (utm) {
+function UTMtoLL(utm) {
 
   var UTMNorthing = utm.northing;
   var UTMEasting = utm.easting;
@@ -369,13 +374,11 @@ function getLetterDesignator(lat) {
  * @return {string} MGRS string for the given UTM location.
  */
 function encode(utm, accuracy) {
-  var seasting = "" + utm.easting,
-    snorthing = "" + utm.northing;
-  if (accuracy === 0){
-    return utm.zoneNumber + utm.zoneLetter + get100kID(utm.easting, utm.northing, utm.zoneNumber);
-  }else{
-    return utm.zoneNumber + utm.zoneLetter + get100kID(utm.easting, utm.northing, utm.zoneNumber) + seasting.substr(0, accuracy) + snorthing.substr(0, accuracy);
-  }
+  // prepend with leading zeroes
+  var seasting = "00000" + utm.easting,
+    snorthing = "00000" + utm.northing;
+
+  return utm.zoneNumber + utm.zoneLetter + get100kID(utm.easting, utm.northing, utm.zoneNumber) + seasting.substr(seasting.length - 5, accuracy) + snorthing.substr(snorthing.length - 5, accuracy);
 }
 
 /**
@@ -386,7 +389,7 @@ function encode(utm, accuracy) {
  * @param {number} easting
  * @param {number} northing
  * @param {number} zoneNumber
- * @return the two letter 100k designator for the given UTM location.
+ * @return {string} the two letter 100k designator for the given UTM location.
  */
 function get100kID(easting, northing, zoneNumber) {
   var setParm = get100kSetForZone(zoneNumber);
@@ -425,7 +428,7 @@ function get100kSetForZone(i) {
  * @param {number} parm the set block, as it relates to the MGRS 100k set
  *        spreadsheet, created from the UTM zone. Values are from
  *        1-60.
- * @return two letter MGRS 100k code.
+ * @return {string} two letter MGRS 100k code.
  */
 function getLetter100kID(column, row, parm) {
   // colOrigin and rowOrigin are the letters at the origin of the set
@@ -753,5 +756,13 @@ function getMinNorthing(zoneLetter) {
 
 }
 
-},{}]},{},[1])(1)
-});
+exports['default'] = mgrs;
+exports.forward = forward;
+exports.inverse = inverse;
+exports.toPoint = toPoint;
+exports.LLtoUTM = LLtoUTM;
+exports.UTMtoLL = UTMtoLL;
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+})));
