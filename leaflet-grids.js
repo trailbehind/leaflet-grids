@@ -21,6 +21,7 @@ L.Grids = L.LayerGroup.extend({
                 weight: 4,
                 clickable: false
         },
+        label: true,
     },
 
     initialize: function (options) {
@@ -69,8 +70,10 @@ L.Grids = L.LayerGroup.extend({
             }
         }
 
-        for (i in this._gridLabels) {
-            gridGroup.addLayer(this._gridLabels[i]);
+        if (this.options.label) {
+            for (i in this._gridLabels) {
+                gridGroup.addLayer(this._gridLabels[i]);
+            }
         }
         // First, remove old layer before drawing the new one
         this.eachLayer(this.removeLayer, this); 
