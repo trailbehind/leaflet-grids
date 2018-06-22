@@ -151,9 +151,11 @@ L.Grids = L.LayerGroup.extend({
     },
 
     _label: function (latLng, labelText, cssClass) {
+        if (cssClass === undefined) { cssClass = ''; }
         return L.marker(latLng, {
                 icon: L.divIcon({
                     className: 'leaflet-grids-label',
+                    iconAnchor: L.point(30, 0),
                     html: '<div class="grid-label ' + cssClass + '">' + labelText+ '</div>'
                 })
         });
