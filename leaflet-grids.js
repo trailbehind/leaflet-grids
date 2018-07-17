@@ -21,6 +21,7 @@ L.Grids = L.LayerGroup.extend({
                 weight: 4,
                 clickable: false
         },
+        label: true,
     },
 
     initialize: function (options) {
@@ -69,8 +70,10 @@ L.Grids = L.LayerGroup.extend({
             }
         }
 
-        for (i in this._gridLabels) {
-            gridGroup.addLayer(this._gridLabels[i]);
+        if (this.options.label) {
+            for (i in this._gridLabels) {
+                gridGroup.addLayer(this._gridLabels[i]);
+            }
         }
         // First, remove old layer before drawing the new one
         this.eachLayer(this.removeLayer, this); 
@@ -148,9 +151,11 @@ L.Grids = L.LayerGroup.extend({
     },
 
     _label: function (latLng, labelText, cssClass) {
+        if (cssClass === undefined) { cssClass = ''; }
         return L.marker(latLng, {
                 icon: L.divIcon({
                     className: 'leaflet-grids-label',
+                    iconAnchor: L.point(30, 0),
                     html: '<div class="grid-label ' + cssClass + '">' + labelText+ '</div>'
                 })
         });
@@ -587,8 +592,8 @@ L.Grids.Mercator = L.Grids.extend({
             for (x in horzLines){
                 for (y in vertLines){
                     labelPt = this._lineIntersect(horzLines[x], vertLines[y]);
-                    if(this._bounds.contains(labelPt)){
-                        gridLabel = mgrs.LLtoMGRS([labelPt.lng, labelPt.lat], this._MGRSAccuracy());
+                    if(labelPt && this._bounds.contains(labelPt)){
+                        gridLabel = mgrs.forward([labelPt.lng, labelPt.lat], this._MGRSAccuracy());
                         this._gridLabels.push(this._label(labelPt, gridLabel));
                     }        
                 }
@@ -936,13 +941,13 @@ L.grids.distance.imperial = function (options) {
 var EARTH_RADIUS = 6371000;
 
 SMtoLL = function (point) { // Spherical Mercator -> LatLng
-    projectionPoint = L.point(point).divideBy(EARTH_RADIUS);
+    projectionPoint = L.point(point);
     return L.Projection.SphericalMercator.unproject(projectionPoint);
 
 };
 
 LLtoSM = function (point) { // LatLng -> Spherical Mercator 
-    return L.Projection.SphericalMercator.project(point).multiplyBy(EARTH_RADIUS);
+    return L.Projection.SphericalMercator.project(point);
 
 };
 
